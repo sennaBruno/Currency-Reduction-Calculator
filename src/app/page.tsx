@@ -23,10 +23,17 @@ interface CalculationResult {
   initialBRLNoReduction: number;
 }
 
+interface FormInputs {
+  initialAmountUSD: number;
+  exchangeRate: number;
+  reductions: string;
+}
+
 export default function Home() {
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const [formInputs, setFormInputs] = useState<FormInputs | null>(null);
 
   const handleCalculate = async (data: { 
     initialAmountUSD: number; 
@@ -35,6 +42,7 @@ export default function Home() {
   }) => {
     setIsLoading(true);
     setError(undefined);
+    setFormInputs(data);
 
     try {
       const response = await fetch('/api/calculate', {
@@ -65,13 +73,60 @@ export default function Home() {
   const handleReset = () => {
     setCalculationResult(null);
     setError(undefined);
+    setFormInputs(null);
   };
   
-  // Stub for download function (to be implemented in Step 2)
+  const formatCurrencyForTxt = (value: number, currency: string): string => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+  
+  const formatResultsAsText = (): string => {
+    if (!calculationResult || !formInputs) return '';
+    
+    let text = "Cálculo de Redução de Moeda\n\n";
+    
+    text += "== Entradas ==\n";
+    text += `Valor Inicial (USD): ${formatCurrencyForTxt(formInputs.initialAmountUSD, 'USD')}\n`;
+    text += `Taxa de Câmbio (BRL/USD): ${formInputs.exchangeRate}\n`;
+    text += `Reduções (%): ${formInputs.reductions}\n\n`;
+    
+    text += "== Resultado Passo a Passo (BRL) ==\n";
+    text += `Valor Inicial (BRL): ${formatCurrencyForTxt(calculationResult.initialBRLNoReduction, 'BRL')}\n\n`;
+    
+    calculationResult.steps.forEach(step => {
+      text += `--- Passo ${step.step} (${step.reductionPercentage.toFixed(2)}%) ---\n`;
+      text += `Valor Antes: ${formatCurrencyForTxt(step.initialBRL, 'BRL')}\n`;
+      text += `Redução: ${formatCurrencyForTxt(step.reductionAmountBRL, 'BRL')}\n`;
+      text += `Valor Depois: ${formatCurrencyForTxt(step.finalBRL, 'BRL')}\n\n`;
+    });
+    
+    return text;
+  };
+  
   const handleDownload = () => {
-    if (!calculationResult) return;
-    // This is just a stub - the actual implementation will be done in Step 2
-    console.log('Download button clicked');
+    if (!calculationResult || !formInputs) return;
+    
+    const textContent = formatResultsAsText();
+    
+    const blob = new Blob([textContent], { type: 'text/plain' });
+    
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'calculo-resultado.txt';
+    
+    document.body.appendChild(link);
+    
+    link.click();
+    
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
