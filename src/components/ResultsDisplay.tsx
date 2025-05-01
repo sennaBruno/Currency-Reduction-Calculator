@@ -16,12 +16,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
+// Legacy interface
 interface CalculationStep {
   step: number;
-  initialBRL: number;
-  reductionPercentage: number;
-  reductionAmountBRL: number;
-  finalBRL: number;
+  initialBRL?: number; // Make optional to handle both formats
+  reductionPercentage?: number; // Make optional
+  reductionAmountBRL?: number; // Make optional
+  finalBRL?: number; // Make optional
+  // New format properties
+  description?: string;
+  calculation_details?: string;
+  result_intermediate?: number;
+  result_running_total?: number;
+  explanation?: string;
 }
 
 interface ResultsDisplayProps {
@@ -32,7 +39,8 @@ interface ResultsDisplayProps {
 }
 
 // Helper function to format currency values
-const formatCurrency = (value: number, currency: string): string => {
+const formatCurrency = (value: number | undefined, currency: string): string => {
+  if (value === undefined || isNaN(Number(value))) return 'N/A';
   return new Intl.NumberFormat('en-US', { 
     style: 'currency', 
     currency,
@@ -72,6 +80,18 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     );
   }
 
+  // Extract the final value
+  let finalValue = initialBRLNoReduction;
+  if (steps.length > 0) {
+    // Try to get the final value from the last step
+    const lastStep = steps[steps.length - 1];
+    if (lastStep.finalBRL !== undefined) {
+      finalValue = lastStep.finalBRL;
+    } else if (lastStep.result_running_total !== undefined) {
+      finalValue = lastStep.result_running_total;
+    }
+  }
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-2">
@@ -100,15 +120,43 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {steps.map((step) => (
-                <TableRow key={step.step} className={step.step % 2 === 0 ? 'bg-muted/20' : ''}>
-                  <TableCell className="font-medium">{step.step}</TableCell>
-                  <TableCell>{formatCurrency(step.initialBRL, 'BRL')}</TableCell>
-                  <TableCell>{step.reductionPercentage.toFixed(2)}%</TableCell>
-                  <TableCell>{formatCurrency(step.reductionAmountBRL, 'BRL')}</TableCell>
-                  <TableCell>{formatCurrency(step.finalBRL, 'BRL')}</TableCell>
-                </TableRow>
-              ))}
+              {steps.map((step) => {
+                // Check which format is being used for this step
+                const hasLegacyFormat = step.initialBRL !== undefined && 
+                                       step.reductionPercentage !== undefined &&
+                                       step.reductionAmountBRL !== undefined &&
+                                       step.finalBRL !== undefined;
+                                       
+                // Get final value for this step
+                const stepFinalValue = hasLegacyFormat 
+                  ? step.finalBRL 
+                  : step.result_running_total;
+                
+                // Get reduction amount for this step
+                const reductionAmount = hasLegacyFormat 
+                  ? step.reductionAmountBRL 
+                  : step.result_intermediate;
+                
+                return (
+                  <TableRow key={step.step} className={step.step % 2 === 0 ? 'bg-muted/20' : ''}>
+                    <TableCell className="font-medium">{step.step}</TableCell>
+                    <TableCell>
+                      {formatCurrency(hasLegacyFormat ? step.initialBRL : undefined, 'BRL')}
+                    </TableCell>
+                    <TableCell>
+                      {hasLegacyFormat && step.reductionPercentage !== undefined
+                        ? `${step.reductionPercentage.toFixed(2)}%` 
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(reductionAmount, 'BRL')}
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(stepFinalValue, 'BRL')}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -117,7 +165,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <Card className="mt-4 bg-accent/10 border-accent/20">
           <CardContent className="py-3">
             <p className="font-medium">
-              Final amount after all reductions: {formatCurrency(steps[steps.length - 1].finalBRL, 'BRL')}
+              Final amount after all reductions: {formatCurrency(finalValue, 'BRL')}
             </p>
           </CardContent>
         </Card>

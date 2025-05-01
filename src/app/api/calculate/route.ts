@@ -20,6 +20,11 @@ interface CalculationStep {
   result_intermediate: number; // Result of this step's calculation, e.g., 170.19
   result_running_total: number; // Balance after this step, e.g., 16848.81
   explanation?: string;
+  // Legacy properties for backward compatibility
+  initialBRL?: number;
+  reductionPercentage?: number;
+  reductionAmountBRL?: number;
+  finalBRL?: number;
 }
 
 interface CalculateSuccessResponse {
@@ -246,6 +251,10 @@ async function handleSimpleCalculation(body: CalculateRequestBody): Promise<Resp
     // Add step to results with enhanced details for backward compatibility
     steps.push({
       step: i + 1,
+      initialBRL: initialBRL,
+      reductionPercentage: reductionPercentage,
+      reductionAmountBRL: reductionAmountBRL,
+      finalBRL: finalBRL,
       description: `Reduction ${i + 1}: ${reductionPercentage}%`,
       calculation_details: `${initialBRL.toFixed(2)} × ${reductionPercentage/100} = ${reductionAmountBRL.toFixed(2)}`,
       result_intermediate: reductionAmountBRL,
@@ -253,11 +262,11 @@ async function handleSimpleCalculation(body: CalculateRequestBody): Promise<Resp
       explanation: `Applying ${reductionPercentage}% reduction`
     });
     
-    // Update current balance for next step
+    // Update current balance for next iteration
     currentBalanceBRL = finalBRL;
   }
   
-  // Return success response
+  // Return successful calculation result
   return new Response(
     JSON.stringify({
       steps,

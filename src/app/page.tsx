@@ -87,7 +87,11 @@ export default function Home() {
         setCalculationResult(null);
         setDetailedResult(null);
       } else {
-        setCalculationResult(result);
+        // Ensure initialBRLNoReduction is present for consistent interface
+        setCalculationResult({
+          ...result,
+          initialBRLNoReduction: result.initialBRLNoReduction || 0
+        });
         setDetailedResult(null);
         setError(undefined);
       }

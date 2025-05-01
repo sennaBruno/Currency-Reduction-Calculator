@@ -34,7 +34,8 @@ interface DetailedResultsDisplayProps {
 }
 
 // Helper function to format currency values
-const formatCurrency = (value: number, currency: string): string => {
+const formatCurrency = (value: number | undefined, currency: string): string => {
+  if (value === undefined) return 'N/A';
   return new Intl.NumberFormat('en-US', { 
     style: 'currency', 
     currency,
@@ -101,7 +102,7 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
                   <TableCell className="font-medium">{step.step}</TableCell>
                   <TableCell>
                     <div>
-                      <p>{step.description}</p>
+                      <p>{step.description || 'N/A'}</p>
                       {step.explanation && (
                         <p className="text-xs text-muted-foreground mt-1">{step.explanation}</p>
                       )}
@@ -109,7 +110,7 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
                   </TableCell>
                   <TableCell>
                     <code className="text-sm bg-muted/30 px-1 py-0.5 rounded">
-                      {step.calculation_details}
+                      {step.calculation_details || 'N/A'}
                     </code>
                   </TableCell>
                   <TableCell className="text-right">
