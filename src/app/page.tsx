@@ -66,6 +66,13 @@ export default function Home() {
     setCalculationResult(null);
     setError(undefined);
   };
+  
+  // Stub for download function (to be implemented in Step 2)
+  const handleDownload = () => {
+    if (!calculationResult) return;
+    // This is just a stub - the actual implementation will be done in Step 2
+    console.log('Download button clicked');
+  };
 
   return (
     <div className="bg-background">
@@ -97,6 +104,7 @@ export default function Home() {
                 steps={calculationResult?.steps || []} 
                 initialBRLNoReduction={calculationResult?.initialBRLNoReduction || 0} 
                 error={error}
+                onDownload={calculationResult ? handleDownload : undefined}
               />
             )}
           </div>

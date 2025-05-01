@@ -13,6 +13,8 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
 interface CalculationStep {
   step: number;
@@ -26,6 +28,7 @@ interface ResultsDisplayProps {
   steps: CalculationStep[];
   initialBRLNoReduction: number;
   error?: string;
+  onDownload?: () => void;
 }
 
 // Helper function to format currency values
@@ -41,7 +44,8 @@ const formatCurrency = (value: number, currency: string): string => {
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
   steps, 
   initialBRLNoReduction,
-  error 
+  error,
+  onDownload
 }) => {
   // If there's an error, display the error message
   if (error) {
@@ -117,6 +121,19 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             </p>
           </CardContent>
         </Card>
+        
+        {/* Download button */}
+        <div className="mt-4 flex justify-end">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2" 
+            onClick={onDownload}
+            disabled={!onDownload}
+          >
+            <Download size={16} />
+            Download Result (.txt)
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
