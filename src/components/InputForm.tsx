@@ -41,23 +41,40 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const InputForm: React.FC = () => {
+interface InputFormProps {
+  onSubmit: (data: FormValues) => void;
+  onReset?: () => void;
+  isLoading?: boolean;
+}
+
+const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = false }) => {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: 'onSubmit'
   });
 
-  const onSubmit = (data: FormValues) => {
-    console.log(data);
-    // API call will be implemented in a future step
+  const handleFormSubmit = (data: FormValues) => {
+    onSubmit(data);
+  };
+
+  const handleReset = () => {
+    reset({
+      initialAmountUSD: undefined,
+      exchangeRate: undefined,
+      reductions: ''
+    });
+    if (onReset) {
+      onReset();
+    }
   };
 
   return (
-    <form className="space-y-4 max-w-md" onSubmit={handleSubmit(onSubmit)}>
+    <form className="space-y-4 max-w-md" onSubmit={handleSubmit(handleFormSubmit)}>
       <div className="flex flex-col">
         <label htmlFor="initialAmountUSD" className="mb-1 font-medium">
           Initial Amount (USD)
@@ -72,6 +89,7 @@ const InputForm: React.FC = () => {
           min="0"
           step="0.01"
           placeholder="Enter amount in USD"
+          disabled={isLoading}
         />
         {errors.initialAmountUSD && (
           <p className="text-red-500 text-xs mt-1">{errors.initialAmountUSD.message}</p>
@@ -92,6 +110,7 @@ const InputForm: React.FC = () => {
           min="0"
           step="0.01"
           placeholder="Enter exchange rate"
+          disabled={isLoading}
         />
         {errors.exchangeRate && (
           <p className="text-red-500 text-xs mt-1">{errors.exchangeRate.message}</p>
@@ -110,6 +129,7 @@ const InputForm: React.FC = () => {
             errors.reductions ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="E.g., 10, 20, 5.5"
+          disabled={isLoading}
         />
         <p className="text-xs text-gray-500 mt-1">Enter percentages separated by commas</p>
         {errors.reductions && (
@@ -117,12 +137,28 @@ const InputForm: React.FC = () => {
         )}
       </div>
 
-      <button 
-        type="submit" 
-        className="w-full p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-      >
-        Calculate
-      </button>
+      <div className="flex space-x-4">
+        <button 
+          type="submit" 
+          className={`flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors ${
+            isLoading ? 'opacity-70 cursor-not-allowed' : ''
+          }`}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Calculating...' : 'Calculate'}
+        </button>
+        
+        <button 
+          type="button"
+          onClick={handleReset}
+          className={`flex-1 p-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors ${
+            isLoading ? 'opacity-70 cursor-not-allowed' : ''
+          }`}
+          disabled={isLoading}
+        >
+          Reset
+        </button>
+      </div>
     </form>
   );
 };
