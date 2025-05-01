@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import DetailedStepsInput, { InputStep } from './DetailedStepsInput';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Define schema for traditional form validation (for backward compatibility)
@@ -45,7 +44,8 @@ const traditionalFormSchema = z.object({
 
 type TraditionalFormValues = z.infer<typeof traditionalFormSchema>;
 
-// Schema for detailed steps
+// Schema for detailed steps - Removed as it wasn't used for validation
+/*
 const detailedFormSchema = z.object({
   steps: z.array(
     z.object({
@@ -61,6 +61,7 @@ const detailedFormSchema = z.object({
 });
 
 type DetailedFormValues = z.infer<typeof detailedFormSchema>;
+*/
 
 interface DetailedInputFormProps {
   onSubmitTraditional: (data: TraditionalFormValues) => void;

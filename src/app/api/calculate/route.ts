@@ -51,7 +51,8 @@ export async function POST(request: Request) {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Error parsing request body:", error);
     // Handle unexpected errors
     return new Response(
       JSON.stringify({ error: "An unexpected error occurred" }),
@@ -177,7 +178,8 @@ async function handleDetailedCalculation(body: CalculateRequestBody): Promise<Re
       } as CalculateSuccessResponse),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("Calculation error:", error);
     return new Response(
       JSON.stringify({ error: "Error processing calculation steps" }),
       { status: 500, headers: { "Content-Type": "application/json" } }

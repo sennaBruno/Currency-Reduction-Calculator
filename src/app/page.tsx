@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import InputForm from "@/components/InputForm";
 import DetailedInputForm from "@/components/DetailedInputForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import DetailedResultsDisplay from "@/components/DetailedResultsDisplay";
@@ -95,7 +94,8 @@ export default function Home() {
         setDetailedResult(null);
         setError(undefined);
       }
-    } catch (err) {
+    } catch (fetchError) {
+      console.error("Fetch error:", fetchError);
       setError('Failed to fetch calculation results');
       setCalculationResult(null);
       setDetailedResult(null);
@@ -130,7 +130,8 @@ export default function Home() {
         setCalculationResult(null);
         setError(undefined);
       }
-    } catch (err) {
+    } catch (fetchError) {
+      console.error("Fetch error:", fetchError);
       setError('Failed to fetch calculation results');
       setCalculationResult(null);
       setDetailedResult(null);

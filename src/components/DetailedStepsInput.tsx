@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,7 +113,7 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
       {steps.length === 0 ? (
         <Card className="bg-muted/20">
           <CardContent className="py-6 text-center text-muted-foreground">
-            <p>No steps added yet. Click "Add Step" to start building your calculation.</p>
+            <p>No steps added yet. Click &quot;Add Step&quot; to start building your calculation.</p>
           </CardContent>
         </Card>
       ) : (
