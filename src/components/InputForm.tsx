@@ -5,6 +5,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+// Import Shadcn UI components
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils"; // Import cn utility
+
 // Define schema for form validation
 const formSchema = z.object({
   initialAmountUSD: z
@@ -74,90 +80,77 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = fa
   };
 
   return (
-    <form className="space-y-4 max-w-md" onSubmit={handleSubmit(handleFormSubmit)}>
-      <div className="flex flex-col">
-        <label htmlFor="initialAmountUSD" className="mb-1 font-medium">
-          Initial Amount (USD)
-        </label>
-        <input 
+    // Use space-y-6 for potentially better spacing with Shadcn defaults
+    <form className="space-y-6" onSubmit={handleSubmit(handleFormSubmit)}>
+      <div className="space-y-2">
+        <Label htmlFor="initialAmountUSD">Initial Amount (USD)</Label>
+        <Input 
           {...register('initialAmountUSD', { valueAsNumber: true })}
           type="number" 
           id="initialAmountUSD" 
-          className={`p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.initialAmountUSD ? 'border-red-500' : 'border-gray-300'
-          }`}
-          min="0"
+          // Use cn for conditional classes, apply error state styling
+          className={cn(errors.initialAmountUSD && "border-red-500 focus-visible:ring-red-500")}
+          min={0} // Use number instead of string
           step="0.01"
           placeholder="Enter amount in USD"
           disabled={isLoading}
         />
         {errors.initialAmountUSD && (
-          <p className="text-red-500 text-xs mt-1">{errors.initialAmountUSD.message}</p>
+          <p className="text-sm text-red-500">{errors.initialAmountUSD.message}</p> // Use text-sm for consistency
         )}
       </div>
 
-      <div className="flex flex-col">
-        <label htmlFor="exchangeRate" className="mb-1 font-medium">
-          Exchange Rate (USD → BRL)
-        </label>
-        <input 
+      <div className="space-y-2">
+        <Label htmlFor="exchangeRate">Exchange Rate (USD → BRL)</Label>
+        <Input 
           {...register('exchangeRate', { valueAsNumber: true })}
           type="number" 
           id="exchangeRate" 
-          className={`p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.exchangeRate ? 'border-red-500' : 'border-gray-300'
-          }`}
-          min="0"
+          className={cn(errors.exchangeRate && "border-red-500 focus-visible:ring-red-500")}
+          min={0} // Use number instead of string
           step="0.01"
           placeholder="Enter exchange rate"
           disabled={isLoading}
         />
         {errors.exchangeRate && (
-          <p className="text-red-500 text-xs mt-1">{errors.exchangeRate.message}</p>
+          <p className="text-sm text-red-500">{errors.exchangeRate.message}</p>
         )}
       </div>
 
-      <div className="flex flex-col">
-        <label htmlFor="reductions" className="mb-1 font-medium">
-          Reductions (%)
-        </label>
-        <input 
+      <div className="space-y-2">
+        <Label htmlFor="reductions">Reductions (%)</Label>
+        <Input 
           {...register('reductions')}
           type="text" 
           id="reductions" 
-          className={`p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.reductions ? 'border-red-500' : 'border-gray-300'
-          }`}
+          className={cn(errors.reductions && "border-red-500 focus-visible:ring-red-500")}
           placeholder="E.g., 10, 20, 5.5"
           disabled={isLoading}
         />
-        <p className="text-xs text-gray-500 mt-1">Enter percentages separated by commas</p>
+        <p className="text-sm text-muted-foreground">Enter percentages separated by commas</p> {/* Use Shadcn's muted foreground color */}
         {errors.reductions && (
-          <p className="text-red-500 text-xs mt-1">{errors.reductions.message}</p>
+          <p className="text-sm text-red-500">{errors.reductions.message}</p>
         )}
       </div>
 
       <div className="flex space-x-4">
-        <button 
+        <Button 
           type="submit" 
-          className={`flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors ${
-            isLoading ? 'opacity-70 cursor-not-allowed' : ''
-          }`}
+          className="flex-1"
           disabled={isLoading}
         >
           {isLoading ? 'Calculating...' : 'Calculate'}
-        </button>
+        </Button>
         
-        <button 
+        <Button 
           type="button"
+          variant="outline" // Use outline variant for reset
+          className="flex-1"
           onClick={handleReset}
-          className={`flex-1 p-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors ${
-            isLoading ? 'opacity-70 cursor-not-allowed' : ''
-          }`}
           disabled={isLoading}
         >
           Reset
-        </button>
+        </Button>
       </div>
     </form>
   );

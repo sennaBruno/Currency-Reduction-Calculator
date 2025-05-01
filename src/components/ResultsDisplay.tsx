@@ -1,4 +1,18 @@
 import React from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 
 interface CalculationStep {
   step: number;
@@ -32,84 +46,79 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   // If there's an error, display the error message
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4 my-4">
-        <h2 className="text-lg font-semibold text-red-600 mb-2">Error</h2>
-        <p className="text-red-600">{error}</p>
-      </div>
+      <Card className="border-destructive/20 bg-destructive/10 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-destructive">Error</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">{error}</p>
+        </CardContent>
+      </Card>
     );
   }
 
   // If no steps to display, show informational message
   if (!steps || steps.length === 0) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-md p-4 my-4">
-        <p className="text-gray-500">Enter values and click Calculate to see results.</p>
-      </div>
+      <Card className="border-muted bg-muted/20 shadow-sm">
+        <CardContent className="py-8">
+          <p className="text-muted-foreground text-center">Enter values and click Calculate to see results.</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-md p-4 my-4 overflow-x-auto">
-      <h2 className="text-lg font-semibold mb-4">Calculation Results</h2>
-      
-      {/* Initial USD to BRL conversion */}
-      <div className="mb-4 p-3 bg-blue-50 rounded-md">
-        <p className="font-medium">
-          Initial BRL amount: {formatCurrency(initialBRLNoReduction, 'BRL')}
-        </p>
-      </div>
+    <Card className="shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle>Calculation Results</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* Initial USD to BRL conversion */}
+        <Card className="mb-4 bg-primary/10 border-primary/20">
+          <CardContent className="py-3">
+            <p className="font-medium">
+              Initial BRL amount: {formatCurrency(initialBRLNoReduction, 'BRL')}
+            </p>
+          </CardContent>
+        </Card>
 
-      {/* Results table */}
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Step
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Initial Value (BRL)
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Reduction (%)
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Reduction Amount (BRL)
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Final Value (BRL)
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {steps.map((step) => (
-            <tr key={step.step} className={step.step % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {step.step}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatCurrency(step.initialBRL, 'BRL')}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {step.reductionPercentage.toFixed(2)}%
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatCurrency(step.reductionAmountBRL, 'BRL')}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatCurrency(step.finalBRL, 'BRL')}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        {/* Results table */}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Step</TableHead>
+                <TableHead>Initial Value (BRL)</TableHead>
+                <TableHead>Reduction (%)</TableHead>
+                <TableHead>Reduction Amount (BRL)</TableHead>
+                <TableHead>Final Value (BRL)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {steps.map((step) => (
+                <TableRow key={step.step} className={step.step % 2 === 0 ? 'bg-muted/20' : ''}>
+                  <TableCell className="font-medium">{step.step}</TableCell>
+                  <TableCell>{formatCurrency(step.initialBRL, 'BRL')}</TableCell>
+                  <TableCell>{step.reductionPercentage.toFixed(2)}%</TableCell>
+                  <TableCell>{formatCurrency(step.reductionAmountBRL, 'BRL')}</TableCell>
+                  <TableCell>{formatCurrency(step.finalBRL, 'BRL')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
-      {/* Final result after all reductions */}
-      <div className="mt-4 p-3 bg-green-50 rounded-md">
-        <p className="font-medium">
-          Final amount after all reductions: {formatCurrency(steps[steps.length - 1].finalBRL, 'BRL')}
-        </p>
-      </div>
-    </div>
+        {/* Final result after all reductions */}
+        <Card className="mt-4 bg-accent/10 border-accent/20">
+          <CardContent className="py-3">
+            <p className="font-medium">
+              Final amount after all reductions: {formatCurrency(steps[steps.length - 1].finalBRL, 'BRL')}
+            </p>
+          </CardContent>
+        </Card>
+      </CardContent>
+    </Card>
   );
 };
 
