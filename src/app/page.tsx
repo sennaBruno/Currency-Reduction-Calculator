@@ -3,6 +3,12 @@
 import { useState } from 'react';
 import InputForm from "@/components/InputForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 
 interface CalculationStep {
   step: number;
@@ -62,32 +68,36 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Currency Reduction Calculator</h1>
+    <div className="bg-background">
+      <main className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8 text-center">Currency Reduction Calculator</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-xl font-semibold mb-4">Input Values</h2>
-            <InputForm onSubmit={handleCalculate} onReset={handleReset} isLoading={isLoading} />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle>Input Values</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InputForm onSubmit={handleCalculate} onReset={handleReset} isLoading={isLoading} />
+            </CardContent>
+          </Card>
           
           <div>
             {isLoading ? (
-              <div className="bg-white p-6 rounded-lg shadow-sm flex justify-center items-center h-40">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                  <p>Calculating...</p>
-                </div>
-              </div>
+              <Card className="shadow-sm">
+                <CardContent className="flex justify-center items-center h-40">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-muted-foreground">Calculating...</p>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <ResultsDisplay 
-                  steps={calculationResult?.steps || []} 
-                  initialBRLNoReduction={calculationResult?.initialBRLNoReduction || 0} 
-                  error={error}
-                />
-              </div>
+              <ResultsDisplay 
+                steps={calculationResult?.steps || []} 
+                initialBRLNoReduction={calculationResult?.initialBRLNoReduction || 0} 
+                error={error}
+              />
             )}
           </div>
         </div>
