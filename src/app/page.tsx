@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import InputForm from "@/components/InputForm";
+import DetailedInputForm from "@/components/DetailedInputForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
+import DetailedResultsDisplay from "@/components/DetailedResultsDisplay";
+import { InputStep } from "@/components/DetailedStepsInput";
 import {
   Card,
   CardContent,
@@ -10,6 +13,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 
+// Legacy interfaces
 interface CalculationStep {
   step: number;
   initialBRL: number;
@@ -23,6 +27,21 @@ interface CalculationResult {
   initialBRLNoReduction: number;
 }
 
+// New detailed interfaces
+interface DetailedCalculationStep {
+  step: number;
+  description: string;
+  calculation_details: string;
+  result_intermediate: number;
+  result_running_total: number;
+  explanation?: string;
+}
+
+interface DetailedCalculationResult {
+  steps: DetailedCalculationStep[];
+  final_result: number;
+}
+
 interface FormInputs {
   initialAmountUSD: number;
   exchangeRate: number;
@@ -30,12 +49,19 @@ interface FormInputs {
 }
 
 export default function Home() {
+  // State for legacy calculation
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
+  
+  // State for detailed calculation
+  const [detailedResult, setDetailedResult] = useState<DetailedCalculationResult | null>(null);
+  
   const [error, setError] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [formInputs, setFormInputs] = useState<FormInputs | null>(null);
+  const [calculationMode, setCalculationMode] = useState<'simple' | 'detailed'>('simple');
 
-  const handleCalculate = async (data: { 
+  // Legacy calculation handler
+  const handleTraditionalCalculate = async (data: { 
     initialAmountUSD: number; 
     exchangeRate: number; 
     reductions: string;
@@ -43,6 +69,7 @@ export default function Home() {
     setIsLoading(true);
     setError(undefined);
     setFormInputs(data);
+    setCalculationMode('simple');
 
     try {
       const response = await fetch('/api/calculate', {
@@ -58,13 +85,51 @@ export default function Home() {
       if (!response.ok) {
         setError(result.error || 'An error occurred during the calculation');
         setCalculationResult(null);
+        setDetailedResult(null);
       } else {
         setCalculationResult(result);
+        setDetailedResult(null);
         setError(undefined);
       }
     } catch (err) {
       setError('Failed to fetch calculation results');
       setCalculationResult(null);
+      setDetailedResult(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Detailed calculation handler
+  const handleDetailedCalculate = async (data: { steps: InputStep[] }) => {
+    setIsLoading(true);
+    setError(undefined);
+    setCalculationMode('detailed');
+
+    try {
+      const response = await fetch('/api/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'An error occurred during the calculation');
+        setCalculationResult(null);
+        setDetailedResult(null);
+      } else {
+        setDetailedResult(result);
+        setCalculationResult(null);
+        setError(undefined);
+      }
+    } catch (err) {
+      setError('Failed to fetch calculation results');
+      setCalculationResult(null);
+      setDetailedResult(null);
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +137,7 @@ export default function Home() {
 
   const handleReset = () => {
     setCalculationResult(null);
+    setDetailedResult(null);
     setError(undefined);
     setFormInputs(null);
   };
@@ -85,7 +151,8 @@ export default function Home() {
     }).format(value);
   };
   
-  const formatResultsAsText = (): string => {
+  // Format results as text for traditional calculation
+  const formatTraditionalResultsAsText = (): string => {
     if (!calculationResult || !formInputs) return '';
     
     let text = "Cálculo de Redução de Moeda\n\n";
@@ -107,24 +174,49 @@ export default function Home() {
     
     return text;
   };
+
+  // Format results as text for detailed calculation
+  const formatDetailedResultsAsText = (): string => {
+    if (!detailedResult) return '';
+    
+    let text = "Cálculo Detalhado\n\n";
+    
+    text += "== Resultado Passo a Passo ==\n\n";
+    
+    detailedResult.steps.forEach(step => {
+      text += `--- Passo ${step.step}: ${step.description} ---\n`;
+      if (step.explanation) {
+        text += `Explicação: ${step.explanation}\n`;
+      }
+      text += `Cálculo: ${step.calculation_details}\n`;
+      text += `Resultado deste passo: ${formatCurrencyForTxt(step.result_intermediate, 'BRL')}\n`;
+      text += `Total acumulado: ${formatCurrencyForTxt(step.result_running_total, 'BRL')}\n\n`;
+    });
+    
+    text += `Valor final após todos os cálculos: ${formatCurrencyForTxt(detailedResult.final_result, 'BRL')}\n`;
+    
+    return text;
+  };
   
   const handleDownload = () => {
-    if (!calculationResult || !formInputs) return;
+    let textContent = '';
     
-    const textContent = formatResultsAsText();
+    if (calculationMode === 'simple' && calculationResult) {
+      textContent = formatTraditionalResultsAsText();
+    } else if (calculationMode === 'detailed' && detailedResult) {
+      textContent = formatDetailedResultsAsText();
+    } else {
+      return; // Nothing to download
+    }
     
     const blob = new Blob([textContent], { type: 'text/plain' });
-    
     const url = URL.createObjectURL(blob);
-    
     const link = document.createElement('a');
     link.href = url;
     link.download = 'calculo-resultado.txt';
     
     document.body.appendChild(link);
-    
     link.click();
-    
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
@@ -140,7 +232,12 @@ export default function Home() {
               <CardTitle>Input Values</CardTitle>
             </CardHeader>
             <CardContent>
-              <InputForm onSubmit={handleCalculate} onReset={handleReset} isLoading={isLoading} />
+              <DetailedInputForm 
+                onSubmitTraditional={handleTraditionalCalculate} 
+                onSubmitDetailed={handleDetailedCalculate}
+                onReset={handleReset} 
+                isLoading={isLoading} 
+              />
             </CardContent>
           </Card>
           
@@ -154,12 +251,19 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
+            ) : calculationMode === 'simple' ? (
               <ResultsDisplay 
                 steps={calculationResult?.steps || []} 
                 initialBRLNoReduction={calculationResult?.initialBRLNoReduction || 0} 
                 error={error}
                 onDownload={calculationResult ? handleDownload : undefined}
+              />
+            ) : (
+              <DetailedResultsDisplay 
+                steps={detailedResult?.steps || []} 
+                final_result={detailedResult?.final_result || 0}
+                error={error}
+                onDownload={detailedResult ? handleDownload : undefined}
               />
             )}
           </div>
