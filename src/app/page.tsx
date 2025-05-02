@@ -16,13 +16,12 @@ import {
   ExchangeRateService, 
   CalculatorService,
   DetailedCalculationResult, 
-  SimpleCalculationResult 
+  SimpleCalculationResult,
 } from '@/services';
 
 // Local interface for form inputs
 interface FormInputs {
   initialAmountUSD: number;
-  exchangeRate: number | null;
   reductions: string;
 }
 
@@ -64,30 +63,36 @@ export default function Home() {
   // Updated traditional calculation handler
   const handleTraditionalCalculate = async (data: { 
     initialAmountUSD: number;
-    exchangeRate: number; 
     reductions: string;
   }) => {
-    // Use the exchange rate from the form data
-    // (which may be auto-populated or manually entered)
-    const rateToUse = data.exchangeRate;
+    // Use the fetched exchange rate from state
+    if (exchangeRate === null) {
+      setError("Exchange rate not available. Cannot calculate.");
+      console.error("Calculation aborted: Exchange rate is null.");
+      setCalculationResult(null);
+      setDetailedResult(null);
+      setIsLoading(false); // Ensure loading state is reset
+      return; // Stop execution
+    }
+
+    const rateToUse = exchangeRate;
     
     setIsLoading(true);
     setError(undefined);
     setCalculationMode('simple');
 
-    // Store inputs for download
-    const apiPayload = {
-      initialAmountUSD: data.initialAmountUSD,
-      exchangeRate: rateToUse,
-      reductions: data.reductions,
-    };
-    setFormInputs(apiPayload);
+    // Store inputs for download (using rateToUse from state)
+    setFormInputs({ 
+      initialAmountUSD: data.initialAmountUSD, 
+      reductions: data.reductions 
+    });
 
     try {
+      // Pass arguments individually as expected by the service method
       const result = await CalculatorService.processSimpleCalculation(
-        data.initialAmountUSD,
-        rateToUse,
-        data.reductions
+        data.initialAmountUSD, // Pass initialAmountUSD
+        rateToUse,            // Pass fetched exchange rate
+        data.reductions       // Pass reductions
       );
       
       setCalculationResult(result);
@@ -145,13 +150,13 @@ export default function Home() {
   
   // Format results as text for traditional calculation
   const formatTraditionalResultsAsText = (): string => {
-    if (!calculationResult || !formInputs || formInputs.exchangeRate === null) return '';
+    if (!calculationResult || !formInputs || exchangeRate === null) return '';
     
     let text = "Cálculo de Redução de Moeda\n\n";
     
     text += "== Entradas ==\n";
     text += `Valor Inicial (USD): ${formatCurrencyForTxt(formInputs.initialAmountUSD, 'USD')}\n`;
-    text += `Taxa de Câmbio (BRL/USD): ${formInputs.exchangeRate.toFixed(4)}\n`; // Use fetched rate
+    text += `Taxa de Câmbio (BRL/USD): ${exchangeRate.toFixed(4)}\n`;
     text += `Reduções (%): ${formInputs.reductions}\n\n`;
     
     text += "== Resultado Passo a Passo (BRL) ==\n";
@@ -247,11 +252,10 @@ export default function Home() {
               </div>
 
               <DetailedInputForm 
-                onSubmitTraditional={handleTraditionalCalculate} 
+                onSubmitTraditional={handleTraditionalCalculate}
                 onSubmitDetailed={handleDetailedCalculate}
-                onReset={handleReset} 
+                onReset={handleReset}
                 isLoading={isLoading}
-                exchangeRate={exchangeRate}
               />
             </CardContent>
           </Card>
