@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ExchangeRate, ICurrency } from '../domain/currency';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, RefreshCcwIcon, InfoIcon } from 'lucide-react';
+import { formatDate, parseUTCString, parseISODate, formatRelativeTime } from '../utils/dateUtils';
 
 interface ExchangeRateDisplayProps {
   sourceCurrency: ICurrency;
@@ -54,28 +55,26 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
 
   const formatTimestamp = (dateString?: string | Date): string => {
     if (!dateString) return '';
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    return new Intl.DateTimeFormat('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(date);
+    return formatDate(dateString);
   };
 
-  // Add a function to format the UTC string for display
-  // This will convert "Fri, 02 May 2025 00:00:01 +0000" to a more user-friendly format
   const formatUtcString = (utcString: string | null): string => {
     if (!utcString) return '';
     
     try {
-      // Parse the UTC string into a Date object
-      const date = new Date(utcString);
+      const date = parseUTCString(utcString);
       
-      // Format the date for display
-      return formatTimestamp(date);
+      return date ? formatDate(date) : utcString;
     } catch (e) {
-      // If parsing fails, return the original string
       return utcString;
     }
+  };
+
+  const formatRelativeUpdate = (utcString: string | null): string => {
+    if (!utcString) return '';
+    
+    const date = parseUTCString(utcString);
+    return date ? formatRelativeTime(date) : '';
   };
 
   if (isLoading) {
@@ -128,7 +127,10 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
             ) : metadata?.time_last_update_utc ? (
               <div className="flex flex-col space-y-1">
                 <div>
-                  Last updated by API: {formatUtcString(metadata.time_last_update_utc)}
+                  Last updated: {formatUtcString(metadata.time_last_update_utc)}
+                  <span className="text-xs text-muted-foreground/70 ml-1">
+                    ({formatRelativeUpdate(metadata.time_last_update_utc)})
+                  </span>
                   <span className="inline-flex items-center ml-1 group relative">
                     <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
                     <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
@@ -138,7 +140,10 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
                 </div>
                 {metadata.time_next_update_utc && (
                   <div>
-                    Next API update: {formatUtcString(metadata.time_next_update_utc)}
+                    Next update: {formatUtcString(metadata.time_next_update_utc)}
+                    <span className="text-xs text-muted-foreground/70 ml-1">
+                      ({formatRelativeUpdate(metadata.time_next_update_utc)})
+                    </span>
                     <span className="inline-flex items-center ml-1 group relative">
                       <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
                       <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">

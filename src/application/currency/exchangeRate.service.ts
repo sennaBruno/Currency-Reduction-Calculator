@@ -2,6 +2,7 @@ import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
 import { IExchangeRateRepository, ExchangeRateMetadata } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 import { IExchangeRateService } from './exchangeRate.interface';
+import { nowUTC, addSecondsToDate } from '../../utils/dateUtils';
 
 /**
  * Service that manages exchange rates
@@ -9,7 +10,7 @@ import { IExchangeRateService } from './exchangeRate.interface';
 export class ExchangeRateService implements IExchangeRateService {
   private ratesCache: Map<string, ExchangeRate> = new Map();
   private lastUpdated: Date = new Date(0);
-  private readonly CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+  private readonly CACHE_TTL_SECONDS = 60 * 60; // 1 hour
 
   constructor(private exchangeRateRepository: IExchangeRateRepository) {}
 
@@ -68,7 +69,7 @@ export class ExchangeRateService implements IExchangeRateService {
       this.ratesCache.set(cacheKey, rate);
     });
     
-    this.lastUpdated = new Date();
+    this.lastUpdated = nowUTC();
   }
   
   /**
@@ -94,8 +95,8 @@ export class ExchangeRateService implements IExchangeRateService {
    * @returns True if cache needs refresh, false otherwise
    */
   private isCacheStale(): boolean {
-    const currentTime = new Date();
-    return (currentTime.getTime() - this.lastUpdated.getTime()) > this.CACHE_TTL_MS;
+    const currentTime = nowUTC();
+    return (currentTime.getTime() - this.lastUpdated.getTime()) > (this.CACHE_TTL_SECONDS * 1000);
   }
 
   /**

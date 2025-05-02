@@ -68,6 +68,26 @@ The application follows a **Layered Architecture**, drawing inspiration from Cle
 
 The dependencies flow inwards: Presentation -> Application -> Domain <- Infrastructure.
 
+## Date Handling
+
+The application uses **date-fns** for consistent, reliable date and time handling:
+
+1.  **Centralized Utilities**: All date operations are encapsulated in utility functions in `src/utils/dateUtils.ts` for consistency and maintainability.
+2.  **UTC Standard**: All internal date operations use UTC for consistency. Dates are:
+    - Stored as `Date` objects (UTC-based)
+    - Parsed from Unix timestamps using `fromUnixTimestamp` 
+    - Created via `nowUTC()`
+    - Manipulated with functions like `addSecondsToDate`
+3.  **Data Exchange**: 
+    - ISO 8601 format is used for all API responses via `formatDateISO`
+    - UTC strings from external APIs are carefully parsed using `parseUTCString`
+4.  **UI Formatting**:
+    - Dates are formatted for user display with locale-aware formatting
+    - Both absolute (`formatDate`) and relative (`formatRelativeTime`) times are shown for better UX
+    - Time zone conversion is handled implicitly through formatting
+
+This approach ensures accurate timestamps throughout the application, reliable serialization, and appropriate user-facing date displays.
+
 ## Configuration
 
 Environment variables can be configured in `.env.local` (refer to `.env.example` for required variables and examples). Key configurations include:

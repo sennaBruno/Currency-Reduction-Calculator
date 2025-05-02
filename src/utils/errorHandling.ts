@@ -1,6 +1,8 @@
 /**
  * Different categories of errors for better handling
  */
+import { formatDateISO, nowUTC } from './dateUtils';
+
 export enum ErrorCategory {
   API = 'API_ERROR',
   VALIDATION = 'VALIDATION_ERROR',
@@ -91,7 +93,7 @@ export class AppError extends Error {
       message: this.message,
       category: this.category,
       stack: this.stack,
-      timestamp: new Date().toISOString()
+      timestamp: formatDateISO(nowUTC())
     };
     
     if (this.statusCode) {
@@ -226,13 +228,13 @@ export function logError(
       message: error.message,
       stack: error.stack,
       category: ErrorCategory.UNKNOWN,
-      timestamp: new Date().toISOString()
+      timestamp: formatDateISO(nowUTC())
     };
   } else {
     logData = {
       message: String(error),
       category: ErrorCategory.UNKNOWN,
-      timestamp: new Date().toISOString()
+      timestamp: formatDateISO(nowUTC())
     };
   }
   

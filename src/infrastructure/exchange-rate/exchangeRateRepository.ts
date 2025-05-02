@@ -7,6 +7,7 @@ import { IExchangeRateApiClient } from '../api/exchangeRateApiClient.interface';
 import { ExchangeRateClientFactory, ExchangeRateApiProvider } from '../api/exchangeRateClientFactory';
 import { CurrencyRegistry } from '../../application/currency/currencyRegistry.service';
 import { ErrorFactory } from '../../utils/errorHandling';
+import { fromUnixTimestamp, nowUTC, addSecondsToDate } from '../../utils/dateUtils';
 
 // Define local type alias if needed, or use the imported one directly
 type ExchangeRateMetadata = ExchangeRateMetadataInterface;
@@ -123,8 +124,8 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
           time_next_update_utc: data.time_next_update_utc
         });
 
-        this.lastCacheRefreshTime = new Date();
-        this.lastApiUpdateTime = new Date(data.time_last_update_unix * 1000);
+        this.lastCacheRefreshTime = nowUTC();
+        this.lastApiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
         this.time_last_update_utc = data.time_last_update_utc || null;
         this.time_next_update_utc = data.time_next_update_utc || null;
 
@@ -178,8 +179,8 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
             );
         }
 
-        this.lastCacheRefreshTime = new Date();
-        const apiUpdateTime = new Date(rawData.time_last_update_unix * 1000);
+        this.lastCacheRefreshTime = nowUTC();
+        const apiUpdateTime = fromUnixTimestamp(rawData.time_last_update_unix);
         this.lastApiUpdateTime = apiUpdateTime;
         this.time_last_update_utc = rawData.time_last_update_utc || null;
         this.time_next_update_utc = rawData.time_next_update_utc || null;
@@ -243,8 +244,8 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
             );
         }
 
-        this.lastCacheRefreshTime = new Date();
-        const apiUpdateTime = new Date(data.time_last_update_unix * 1000);
+        this.lastCacheRefreshTime = nowUTC();
+        const apiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
         this.lastApiUpdateTime = apiUpdateTime;
         this.time_last_update_utc = data.time_last_update_utc || null;
         this.time_next_update_utc = data.time_next_update_utc || null;
@@ -308,7 +309,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     return {
       lastCacheRefreshTime: this.lastCacheRefreshTime,
       lastApiUpdateTime: this.lastApiUpdateTime,
-      nextCacheRefreshTime: new Date(this.lastCacheRefreshTime.getTime() + (this.cacheDuration * 1000)),
+      nextCacheRefreshTime: addSecondsToDate(this.lastCacheRefreshTime, this.cacheDuration),
       fromCache: this.fromCache,
       time_last_update_utc: this.time_last_update_utc,
       time_next_update_utc: this.time_next_update_utc

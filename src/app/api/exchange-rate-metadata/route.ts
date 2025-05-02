@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ExchangeRateService } from '../../../application/currency/exchangeRate.service';
 import { ExchangeRateRepository } from '../../../infrastructure/exchange-rate/exchangeRateRepository';
+import { formatDateISO } from '../../../utils/dateUtils';
 
 // Create instances of the required services
 // Use repository pattern with configurable provider and caching
@@ -35,11 +36,11 @@ export async function GET() {
       time_next_update_utc: metadata.time_next_update_utc
     });
     
-    // Format dates and include new UTC strings for response
+    // Format dates using date-fns utility and include UTC strings for response
     const response = {
-      lastApiUpdateTime: metadata.lastApiUpdateTime ? metadata.lastApiUpdateTime.toISOString() : null,
-      lastCacheRefreshTime: metadata.lastCacheRefreshTime.toISOString(),
-      nextCacheRefreshTime: metadata.nextCacheRefreshTime.toISOString(),
+      lastApiUpdateTime: metadata.lastApiUpdateTime ? formatDateISO(metadata.lastApiUpdateTime) : null,
+      lastCacheRefreshTime: formatDateISO(metadata.lastCacheRefreshTime),
+      nextCacheRefreshTime: formatDateISO(metadata.nextCacheRefreshTime),
       fromCache: metadata.fromCache,
       // Add the UTC strings directly from the metadata
       time_last_update_utc: metadata.time_last_update_utc,
