@@ -19,9 +19,10 @@ export async function GET() {
         }
       }
     );
-  } catch (error: any) {
+  } catch (error: Error | unknown) {
     // Log the error with API endpoint context
-    console.error("[API /api/exchange-rate Error]: Failed to get rate.", error.message);
+    console.error("[API /api/exchange-rate Error]: Failed to get rate.", 
+      error instanceof Error ? error.message : 'Unknown error');
 
     // Return a generic error message to the client
     return NextResponse.json(

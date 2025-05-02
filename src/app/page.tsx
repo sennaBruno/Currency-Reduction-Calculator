@@ -15,7 +15,6 @@ import { Loader2 } from "lucide-react";
 import { 
   ExchangeRateService, 
   CalculatorService,
-  CalculationStep, 
   DetailedCalculationResult, 
   SimpleCalculationResult 
 } from '@/services';
@@ -50,9 +49,9 @@ export default function Home() {
       try {
         const rate = await ExchangeRateService.getUsdToBrlRate();
         setExchangeRate(rate);
-      } catch (err: any) {
-        console.error("Exchange rate fetch error:", err);
-        setExchangeRateError(err.message || 'Could not load exchange rate.');
+      } catch (error: Error | unknown) {
+        console.error("Exchange rate fetch error:", error);
+        setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
         setExchangeRate(null); // Ensure rate is null on error
       } finally {
         setExchangeRateLoading(false);
@@ -94,9 +93,9 @@ export default function Home() {
       setCalculationResult(result);
       setDetailedResult(null);
       setError(undefined);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
-      setError(error.message || 'Failed to perform calculation');
+      setError(error instanceof Error ? error.message : 'Failed to perform calculation');
       setCalculationResult(null);
       setDetailedResult(null);
     } finally {
@@ -116,9 +115,9 @@ export default function Home() {
       setDetailedResult(result);
       setCalculationResult(null);
       setError(undefined);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
-      setError(error.message || 'Failed to perform calculation');
+      setError(error instanceof Error ? error.message : 'Failed to perform calculation');
       setCalculationResult(null);
       setDetailedResult(null);
     } finally {

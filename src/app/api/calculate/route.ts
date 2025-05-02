@@ -38,11 +38,11 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       // Handle business logic errors
-      console.error("[API /api/calculate Error]:", error.message);
+      console.error("[API /api/calculate Error]:", error instanceof Error ? error.message : 'Unknown error');
       return NextResponse.json(
-        { error: error.message || "Error processing calculation" },
+        { error: error instanceof Error ? error.message : "Error processing calculation" },
         { status: 400 }
       );
     }

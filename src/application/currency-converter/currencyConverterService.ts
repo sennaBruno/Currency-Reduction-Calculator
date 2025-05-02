@@ -16,24 +16,32 @@ export class CurrencyConverterService implements ICurrencyConverterService {
   }
 
   /**
-   * Converts an amount from USD to BRL using the current exchange rate
-   * @param amount The amount in USD to convert
+   * Converts a USD amount to BRL using the current exchange rate
+   * @param amountUSD The amount in USD to convert
    * @returns The converted amount in BRL
    */
-  async convertUsdToBrl(amount: number): Promise<number> {
+  async convertUsdToBrl(amountUSD: number): Promise<number> {
     try {
-      if (isNaN(amount) || amount < 0) {
+      // Validate input
+      if (isNaN(amountUSD) || amountUSD < 0) {
         throw new Error('Invalid amount. Please provide a positive number.');
       }
 
+      // Get the current exchange rate
       const rate = await this.exchangeRateService.fetchUsdBrlRate();
-      const convertedAmount = amount * rate;
       
-      // Return with 2 decimal places precision
-      return Math.round(convertedAmount * 100) / 100;
-    } catch (error: any) {
-      console.error('[CurrencyConverterService] Error converting USD to BRL:', error.message || error);
-      throw new Error('Could not perform currency conversion. Please try again later.');
+      // Calculate and return the BRL amount
+      return amountUSD * rate;
+    } catch (error: Error | unknown) {
+      // Enhance the error message with context about the conversion
+      const errorMessage = error instanceof Error 
+        ? `Currency conversion failed: ${error.message}` 
+        : 'Currency conversion failed due to an unknown error';
+      
+      console.error('[CurrencyConverterService] Error:', errorMessage);
+      
+      // Re-throw with enhanced message
+      throw new Error(errorMessage);
     }
   }
 } 

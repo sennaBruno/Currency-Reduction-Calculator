@@ -107,9 +107,10 @@ export class CalculatorService implements ICalculatorService {
         steps: processedSteps,
         final_result: runningTotal
       };
-    } catch (error: any) {
-      console.error("Calculation error:", error.message || error);
-      throw error; // Re-throw for handling at the API layer
+    } catch (error: Error | unknown) {
+      console.error('[CalculatorService] Error processing detailed calculation:', 
+        error instanceof Error ? error.message : 'Unknown error');
+      throw new Error('Failed to process the calculation. Please check your inputs and try again.');
     }
   }
 
@@ -200,9 +201,10 @@ export class CalculatorService implements ICalculatorService {
         initialBRLNoReduction,
         final_result: currentBalanceBRL
       };
-    } catch (error: any) {
-      console.error("Simple calculation error:", error.message || error);
-      throw error; // Re-throw for handling at the API layer
+    } catch (error: Error | unknown) {
+      console.error('[CalculatorService] Error processing simple calculation:', 
+        error instanceof Error ? error.message : 'Unknown error');
+      throw new Error('Invalid calculation parameters. Please check your inputs and try again.');
     }
   }
 } 

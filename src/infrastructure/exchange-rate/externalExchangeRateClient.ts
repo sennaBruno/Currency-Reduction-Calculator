@@ -52,9 +52,9 @@ export class ExternalExchangeRateClient {
       
       console.log('Successfully fetched USD/BRL rate:', response.rates.BRL);
       return response.rates.BRL;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Enhanced error handling with more context
-      const errorMessage = error.message || String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Error fetching exchange rate:', errorMessage);
       throw new Error(`Failed to fetch exchange rate: ${errorMessage}`);
     }

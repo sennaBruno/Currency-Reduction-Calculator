@@ -19,9 +19,9 @@ export class ApiService {
           statusCodes: [408, 429, 500, 502, 503, 504]
         }
       }).json<T>();
-    } catch (error: any) {
-      console.error(`API GET error (${endpoint}):`, error.message);
-      throw new Error(error.message || 'Failed to fetch data');
+    } catch (error: unknown) {
+      console.error(`API GET error (${endpoint}):`, error instanceof Error ? error.message : 'Unknown error');
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch data');
     }
   }
   
@@ -42,9 +42,9 @@ export class ApiService {
           statusCodes: [408, 429, 500, 502, 503, 504]
         }
       }).json<U>();
-    } catch (error: any) {
-      console.error(`API POST error (${endpoint}):`, error.message);
-      throw new Error(error.message || 'Failed to submit data');
+    } catch (error: unknown) {
+      console.error(`API POST error (${endpoint}):`, error instanceof Error ? error.message : 'Unknown error');
+      throw new Error(error instanceof Error ? error.message : 'Failed to submit data');
     }
   }
 } 

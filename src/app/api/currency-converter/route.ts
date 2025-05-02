@@ -46,12 +46,12 @@ export async function GET(request: NextRequest) {
         }
       }
     );
-  } catch (error: any) {
-    console.error("[API /api/currency-converter Error]:", error.message);
+  } catch (error: Error | unknown) {
+    console.error("[API /api/currency-converter Error]:", error instanceof Error ? error.message : 'Unknown error');
     
     // Return appropriate error message to the client
     return NextResponse.json(
-      { error: error.message || 'Failed to convert currency. Please try again later.' },
+      { error: error instanceof Error ? error.message : 'Failed to convert currency. Please try again later.' },
       { status: 500 }
     );
   }

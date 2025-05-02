@@ -23,9 +23,10 @@ export class ExchangeRateService {
   async fetchUsdBrlRate(): Promise<number> {
     try {
       return await this.repository.getUsdToBrlRate();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       // Application-level error handling and logging
-      console.error('[ExchangeRateService] Error fetching USD/BRL rate:', error.message || error);
+      console.error('[ExchangeRateService] Error fetching USD/BRL rate:', 
+        error instanceof Error ? error.message : 'Unknown error');
       // Re-throw with a more user-friendly message
       throw new Error('Could not retrieve the current exchange rate. Please try again later.');
     }
