@@ -138,7 +138,7 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 max-h-[450px] overflow-y-auto pr-2">
           {steps.map((step, index) => (
             <Card key={index} className={`p-4 relative ${step.type === 'initial' ? 'border-green-200 bg-green-50/30' : ''}`}>
               <div className="absolute right-2 top-2">

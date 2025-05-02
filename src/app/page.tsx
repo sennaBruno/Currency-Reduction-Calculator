@@ -40,6 +40,14 @@ export default function Home() {
   const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(true);
   const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
 
+  // Function to scroll to top of page
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   // Fetch exchange rate on mount
   useEffect(() => {
     const fetchRate = async () => {
@@ -98,6 +106,7 @@ export default function Home() {
       setCalculationResult(result);
       setDetailedResult(null);
       setError(undefined);
+      scrollToTop();
     } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
       setError(error instanceof Error ? error.message : 'Failed to perform calculation');
@@ -120,6 +129,7 @@ export default function Home() {
       setDetailedResult(result);
       setCalculationResult(null);
       setError(undefined);
+      scrollToTop();
     } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
       setError(error instanceof Error ? error.message : 'Failed to perform calculation');
