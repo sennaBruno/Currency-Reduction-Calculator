@@ -2,6 +2,13 @@ import { ICurrency } from '../currency/currency.interface';
 import { ExchangeRate } from '../currency/exchangeRate.type';
 
 /**
+ * Cache configuration interface for exchange rates
+ */
+export interface CacheConfig {
+  revalidateSeconds: number;
+}
+
+/**
  * Interface defining the operations for exchange rate data retrieval
  */
 export interface IExchangeRateRepository {
@@ -27,4 +34,10 @@ export interface IExchangeRateRepository {
    * @throws Error if the rates cannot be retrieved
    */
   getAllRates(): Promise<ExchangeRate[]>;
+  
+  /**
+   * Gets the cache configuration for exchange rates
+   * @returns The cache configuration object
+   */
+  getCacheConfig(): CacheConfig;
 } 

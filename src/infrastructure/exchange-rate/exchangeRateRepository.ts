@@ -1,5 +1,5 @@
 import { unstable_cache as cache } from 'next/cache';
-import { IExchangeRateRepository } from '../../domain/exchange-rate/exchangeRateRepository.interface';
+import { IExchangeRateRepository, CacheConfig } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
 import { IExchangeRateApiClient } from '../api/exchangeRateApiClient.interface';
@@ -152,10 +152,9 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
    * Gets the current cache configuration
    * @returns Cache configuration object
    */
-  getCacheConfig(): { cacheDuration: number, cacheTag: string } {
+  getCacheConfig(): CacheConfig {
     return {
-      cacheDuration: this.cacheDuration,
-      cacheTag: this.cacheTag
+      revalidateSeconds: this.cacheDuration
     };
   }
 } 

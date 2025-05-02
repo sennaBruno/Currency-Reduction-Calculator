@@ -1,6 +1,6 @@
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
-import { IExchangeRateRepository } from '../../domain/exchange-rate/exchangeRateRepository.interface';
+import { IExchangeRateRepository, CacheConfig } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 import { CurrencyRegistry } from '../../application/currency/currencyRegistry.service';
 import { ErrorFactory, logError } from '../../utils/errorHandling';
 import { IExchangeRateApiClient } from './exchangeRateApiClient.interface';
@@ -189,114 +189,89 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
 
   /**
    * Retrieves all available exchange rates
+   * @param baseCurrency The base currency for rates. If not provided, USD will be used.
    * @returns Promise resolving to an array of exchange rates
    * @throws Error if the rates cannot be retrieved
    */
-  async getAllRates(): Promise<ExchangeRate[]> {
+  async getAllRates(baseCurrency?: ICurrency): Promise<ExchangeRate[]> {
     return withRetry(async () => {
       try {
-        // Get all supported currencies from the registry
-        const currencies = this.currencyRegistry.getAllCurrencies();
-        const exchangeRates: ExchangeRate[] = [];
+        // Use USD as default base currency if none is provided
+        const baseCode = baseCurrency?.code || 'USD';
         
-        // Only fetch rates for major currencies to avoid too many API calls
-        const majorCurrencyCodes = ['USD', 'EUR', 'GBP', 'JPY', 'BRL'];
-        const majorCurrencies = currencies.filter(c => majorCurrencyCodes.includes(c.code));
+        // Make a single API call to get all rates for the base currency
+        const response = await fetch(`${this.API_BASE_URL}/${this.API_KEY}/latest/${baseCode}`);
         
-        // Track errors without immediately failing
-        const errors: Error[] = [];
-        
-        // Use the throttled client for rate limited API calls
-        // Fetch rates for each base currency
-        for (const baseCurrency of majorCurrencies) {
-          try {
-            await this.throttledClient.request(async () => {
-              const response = await fetch(`${this.API_BASE_URL}/${this.API_KEY}/latest/${baseCurrency.code}`);
-              
-              if (!response.ok) {
-                throw ErrorFactory.createApiError(
-                  `Exchange rate API error: ${response.status}`,
-                  new Error(`HTTP ${response.status}: ${response.statusText}`),
-                  response.status,
-                  { baseCurrency: baseCurrency.code }
-                );
-              }
-              
-              const data = await response.json() as ExchangeRateApiResponse;
-              
-              if (data.result !== 'success') {
-                throw ErrorFactory.createApiError(
-                  `API error: ${data.result}`,
-                  null,
-                  400,
-                  { apiResponse: data, baseCurrency: baseCurrency.code }
-                );
-              }
-              
-              const timestamp = new Date(data.time_last_update_unix * 1000);
-              
-              // Create exchange rate objects for each currency pair
-              for (const targetCode of Object.keys(data.conversion_rates)) {
-                // Skip if target is not in our supported list
-                if (!majorCurrencyCodes.includes(targetCode)) continue;
-                
-                // Skip self-conversion
-                if (baseCurrency.code === targetCode) continue;
-                
-                // Get the target currency from the registry
-                const targetCurrency = this.currencyRegistry.getCurrencyByCode(targetCode);
-                if (!targetCurrency) continue;
-                
-                exchangeRates.push({
-                  currencyPair: {
-                    source: baseCurrency,
-                    target: targetCurrency
-                  },
-                  rate: data.conversion_rates[targetCode],
-                  timestamp
-                });
-              }
-            });
-          } catch (error) {
-            // Log the error but continue with other currencies
-            logError(error, { 
-              method: 'getAllRates', 
-              service: 'ExchangeRateApiClient',
-              baseCurrency: baseCurrency.code 
-            });
-            
-            // Add to errors array
-            if (error instanceof Error) {
-              errors.push(error);
-            } else {
-              errors.push(new Error(String(error)));
-            }
-          }
-        }
-        
-        // If we got no exchange rates at all, throw an error
-        if (exchangeRates.length === 0 && errors.length > 0) {
+        if (!response.ok) {
           throw ErrorFactory.createApiError(
-            'Failed to retrieve any exchange rates',
-            errors[0],
-            undefined,
-            { errors: errors.map(e => e.message) }
+            `Exchange rate API error: ${response.status}`,
+            new Error(`HTTP ${response.status}: ${response.statusText}`),
+            response.status,
+            { baseCurrency: baseCode }
           );
         }
         
-        // Return whatever rates we were able to get
+        const data = await response.json() as ExchangeRateApiResponse;
+        
+        if (data.result !== 'success') {
+          throw ErrorFactory.createApiError(
+            `API error: ${data.result}`,
+            null,
+            400,
+            { apiResponse: data, baseCurrency: baseCode }
+          );
+        }
+        
+        const exchangeRates: ExchangeRate[] = [];
+        const timestamp = new Date(data.time_last_update_unix * 1000);
+        
+        // Get all currencies from the registry
+        const availableCurrencies = this.currencyRegistry.getAllCurrencies();
+        const baseCurrencyObj = baseCurrency || this.currencyRegistry.getCurrencyByCode(baseCode);
+        
+        if (!baseCurrencyObj) {
+          throw ErrorFactory.createApiError(
+            `Base currency ${baseCode} not found in registry`,
+            null,
+            400,
+            { baseCurrency: baseCode }
+          );
+        }
+        
+        // Create exchange rate objects for each currency pair
+        for (const targetCode of Object.keys(data.conversion_rates)) {
+          // Skip self-conversion
+          if (baseCode === targetCode) continue;
+          
+          // Get the target currency from the registry
+          const targetCurrency = availableCurrencies.find(c => c.code === targetCode);
+          if (!targetCurrency) continue;
+          
+          exchangeRates.push({
+            currencyPair: {
+              source: baseCurrencyObj,
+              target: targetCurrency
+            },
+            rate: data.conversion_rates[targetCode],
+            timestamp
+          });
+        }
+        
         return exchangeRates;
       } catch (error) {
         // Log the overall error
         logError(error, { 
           method: 'getAllRates', 
-          service: 'ExchangeRateApiClient' 
+          service: 'ExchangeRateApiClient',
+          baseCurrency: baseCurrency?.code || 'USD'
         });
         
         // Rethrow as a standardized application error
         throw ErrorFactory.createApiError(
           'Failed to retrieve exchange rates',
-          error
+          error,
+          undefined,
+          { baseCurrency: baseCurrency?.code || 'USD' }
         );
       }
     });
@@ -322,5 +297,16 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
         error
       );
     }
+  }
+
+  /**
+   * Gets the cache configuration
+   * @returns Cache configuration object
+   */
+  getCacheConfig(): CacheConfig {
+    // Default cache duration of 3600 seconds (1 hour)
+    return {
+      revalidateSeconds: 3600
+    };
   }
 } 
