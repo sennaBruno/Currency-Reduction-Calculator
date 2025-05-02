@@ -1,3 +1,5 @@
+import ky from 'ky';
+
 /**
  * Base API service with utility methods for making API requests
  */
@@ -8,14 +10,19 @@ export class ApiService {
    * @returns The response data
    */
   static async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(endpoint);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+    try {
+      return await ky.get(endpoint, {
+        timeout: 8000,
+        retry: {
+          limit: 2,
+          methods: ['GET'],
+          statusCodes: [408, 429, 500, 502, 503, 504]
+        }
+      }).json<T>();
+    } catch (error: any) {
+      console.error(`API GET error (${endpoint}):`, error.message);
+      throw new Error(error.message || 'Failed to fetch data');
     }
-    
-    return await response.json() as T;
   }
   
   /**
@@ -25,19 +32,19 @@ export class ApiService {
    * @returns The response data
    */
   static async post<T, U>(endpoint: string, data: T): Promise<U> {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+    try {
+      return await ky.post(endpoint, {
+        json: data,
+        timeout: 8000,
+        retry: {
+          limit: 2,
+          methods: ['POST'],
+          statusCodes: [408, 429, 500, 502, 503, 504]
+        }
+      }).json<U>();
+    } catch (error: any) {
+      console.error(`API POST error (${endpoint}):`, error.message);
+      throw new Error(error.message || 'Failed to submit data');
     }
-    
-    return await response.json() as U;
   }
 } 
