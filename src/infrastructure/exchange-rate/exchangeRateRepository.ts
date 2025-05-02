@@ -9,8 +9,24 @@ import { CurrencyRegistry } from '../../application/currency/currencyRegistry.se
 import { ErrorFactory } from '../../utils/errorHandling';
 import { fromUnixTimestamp, nowUTC, addSecondsToDate } from '../../utils/dateUtils';
 
-// Define local type alias if needed, or use the imported one directly
-type ExchangeRateMetadata = ExchangeRateMetadataInterface;
+/**
+ * API response interfaces to improve type safety
+ */
+interface BaseExchangeRateApiResponse {
+  result: string;
+  time_last_update_unix?: number;
+  time_last_update_utc?: string;
+  time_next_update_unix?: number;
+  time_next_update_utc?: string;
+}
+
+interface PairExchangeRateApiResponse extends BaseExchangeRateApiResponse {
+  conversion_rate: number;
+}
+
+interface AllRatesExchangeRateApiResponse extends BaseExchangeRateApiResponse {
+  conversion_rates: Record<string, number>;
+}
 
 /**
  * Configuration options for the ExchangeRateRepository
@@ -86,63 +102,77 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
   }
 
   /**
+   * Generic method to fetch data from the exchange rate API with error handling
+   * @param url API endpoint URL
+   * @param errorContext Error context metadata
+   * @returns Promise resolving to the API response
+   */
+  private async fetchExchangeRateApi<T extends BaseExchangeRateApiResponse>(
+    url: string, 
+    errorContext: Record<string, string>
+  ): Promise<T> {
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw ErrorFactory.createApiError(
+          `Exchange rate API error: ${response.status}`,
+          new Error(`HTTP ${response.status}: ${response.statusText}`),
+          response.status,
+          errorContext
+        );
+      }
+      
+      const data = await response.json() as T;
+
+      if (data.result !== 'success') {
+        throw ErrorFactory.createApiError(
+          `API error: ${data.result}`,
+          null, 
+          400, 
+          { apiResponse: data, ...errorContext }
+        );
+      }
+
+      this.lastCacheRefreshTime = nowUTC();
+      
+      if (data.time_last_update_unix && typeof data.time_last_update_unix === 'number') {
+        this.lastApiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
+      } else {
+        this.lastApiUpdateTime = nowUTC();
+      }
+      
+      this.time_last_update_utc = data.time_last_update_utc || null;
+      this.time_next_update_utc = data.time_next_update_utc || null;
+      this.fromCache = false;
+      
+      return data;
+    } catch (error) {
+      console.error(`Error fetching exchange rate data: ${url}`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Retrieves the current USD to BRL exchange rate, utilizing caching.
    * @returns Promise resolving to the numerical exchange rate value
    */
   async getUsdToBrlRate(): Promise<number> {
     const fetchFreshData = async (): Promise<number> => {
-      try {
-        console.log('Cache miss - fetching fresh USD/BRL exchange rate data');
-        this.fromCache = false;
-
-        const usd = this.currencyRegistry.getCurrencyByCode('USD');
-        const brl = this.currencyRegistry.getCurrencyByCode('BRL');
-        if (!usd || !brl) throw new Error('USD or BRL not found in registry');
-
-        const url = `${this.apiBaseUrl}/${this.apiKey}/pair/${usd.code}/${brl.code}`;
-        console.log(`Fetching exchange rate from: ${url}`);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw ErrorFactory.createApiError(
-              `Exchange rate API error: ${response.status}`,
-              new Error(`HTTP ${response.status}: ${response.statusText}`),
-              response.status,
-              { sourceCurrency: usd.code, targetCurrency: brl.code }
-            );
-        }
-        const data = await response.json() as any;
-
-        if (data.result !== 'success') {
-            throw ErrorFactory.createApiError(
-              `API error: ${data.result}`,
-              null, 400, { apiResponse: data, sourceCurrency: usd.code, targetCurrency: brl.code }
-            );
-        }
-
-        console.log('Exchange rate API response timestamps:', {
-          time_last_update_unix: data.time_last_update_unix,
-          time_last_update_utc: data.time_last_update_utc,
-          time_next_update_unix: data.time_next_update_unix,
-          time_next_update_utc: data.time_next_update_utc
-        });
-
-        this.lastCacheRefreshTime = nowUTC();
-        
-        if (data.time_last_update_unix && typeof data.time_last_update_unix === 'number') {
-          this.lastApiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
-        } else {
-          this.lastApiUpdateTime = nowUTC();
-        }
-        
-        this.time_last_update_utc = data.time_last_update_utc || null;
-        this.time_next_update_utc = data.time_next_update_utc || null;
-
-        return data.conversion_rate as number;
-      } catch (error) {
-        console.error('Error fetching fresh USD/BRL rate within repository:', error);
-        throw error; 
+      const usd = this.currencyRegistry.getCurrencyByCode('USD');
+      const brl = this.currencyRegistry.getCurrencyByCode('BRL');
+      
+      if (!usd || !brl) {
+        throw new Error('USD or BRL not found in registry');
       }
+
+      const url = `${this.apiBaseUrl}/${this.apiKey}/pair/${usd.code}/${brl.code}`;
+      const data = await this.fetchExchangeRateApi<PairExchangeRateApiResponse>(
+        url, 
+        { sourceCurrency: usd.code, targetCurrency: brl.code }
+      );
+
+      return data.conversion_rate;
     };
 
     return unstable_cache(fetchFreshData, [this.cacheTag, 'usd-brl-rate'], {
@@ -162,68 +192,29 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
    */
   async getExchangeRate(fromCurrency: ICurrency, toCurrency: ICurrency): Promise<ExchangeRate> {
     const fetchFreshData = async (): Promise<ExchangeRate> => {
-      try {
-        console.log(`Cache miss - fetching fresh exchange rate data for ${fromCurrency.code} to ${toCurrency.code}`);
-        this.fromCache = false;
-        
-        const url = `${this.apiBaseUrl}/${this.apiKey}/pair/${fromCurrency.code}/${toCurrency.code}`;
-        console.log(`Fetching exchange rate from: ${url}`);
-        
-        const response = await fetch(url);
-         if (!response.ok) {
-            throw ErrorFactory.createApiError(
-              `Exchange rate API error: ${response.status}`,
-              new Error(`HTTP ${response.status}: ${response.statusText}`),
-              response.status,
-              { sourceCurrency: fromCurrency.code, targetCurrency: toCurrency.code }
-            );
-        }
-        const rawData = await response.json() as any;
+      const url = `${this.apiBaseUrl}/${this.apiKey}/pair/${fromCurrency.code}/${toCurrency.code}`;
+      const data = await this.fetchExchangeRateApi<PairExchangeRateApiResponse>(
+        url, 
+        { sourceCurrency: fromCurrency.code, targetCurrency: toCurrency.code }
+      );
 
-        if (rawData.result !== 'success') {
-             throw ErrorFactory.createApiError(
-              `API error: ${rawData.result}`,
-              null, 400, { apiResponse: rawData, sourceCurrency: fromCurrency.code, targetCurrency: toCurrency.code }
-            );
-        }
+      const apiUpdateTime = this.lastApiUpdateTime || nowUTC();
 
-        this.lastCacheRefreshTime = nowUTC();
-        
-        let apiUpdateTime: Date;
-        if (rawData.time_last_update_unix && typeof rawData.time_last_update_unix === 'number') {
-          apiUpdateTime = fromUnixTimestamp(rawData.time_last_update_unix);
-          this.lastApiUpdateTime = apiUpdateTime;
-        } else {
-          apiUpdateTime = nowUTC();
-          this.lastApiUpdateTime = apiUpdateTime;
-        }
-        
-        this.time_last_update_utc = rawData.time_last_update_utc || null;
-        this.time_next_update_utc = rawData.time_next_update_utc || null;
-
-        return {
-            currencyPair: {
-              source: fromCurrency,
-              target: toCurrency
-            },
-            rate: rawData.conversion_rate,
-            timestamp: apiUpdateTime
-          };
-
-      } catch (error) {
-        console.error(`Error fetching fresh ${fromCurrency.code}/${toCurrency.code} rate within repository:`, error);
-        throw error;
-      }
+      return {
+        currencyPair: {
+          source: fromCurrency,
+          target: toCurrency
+        },
+        rate: data.conversion_rate,
+        timestamp: apiUpdateTime
+      };
     };
 
     const cacheKey = `${this.cacheTag}-${fromCurrency.code}-${toCurrency.code}`;
     return unstable_cache(fetchFreshData, [cacheKey], {
       revalidate: this.cacheDuration,
       tags: [this.cacheTag, cacheKey],
-    })().catch(err => {
-       console.error('Error during unstable_cache execution for getExchangeRate:', err);
-      throw err;
-    });
+    })();
   }
 
   /**
@@ -231,88 +222,48 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
    * @returns Promise resolving to an array of exchange rates
    */
   async getAllRates(): Promise<ExchangeRate[]> {
-     const fetchFreshData = async (): Promise<ExchangeRate[]> => {
-      try {
-        console.log('Cache miss - fetching fresh exchange rate data for all rates (base USD)');
-        this.fromCache = false;
+    const fetchFreshData = async (): Promise<ExchangeRate[]> => {
+      const baseCode = 'USD';
+      const url = `${this.apiBaseUrl}/${this.apiKey}/latest/${baseCode}`;
+      
+      const data = await this.fetchExchangeRateApi<AllRatesExchangeRateApiResponse>(
+        url, 
+        { baseCurrency: baseCode }
+      );
 
-        const baseCode = 'USD';
-        
-        const url = `${this.apiBaseUrl}/${this.apiKey}/latest/${baseCode}`;
-        console.log(`Fetching all exchange rates from: ${url}`);
-        
-        const response = await fetch(url);
-         if (!response.ok) {
-            throw ErrorFactory.createApiError(
-              `Exchange rate API error: ${response.status}`,
-              new Error(`HTTP ${response.status}: ${response.statusText}`),
-              response.status,
-              { baseCurrency: baseCode }
-            );
-        }
-        const data = await response.json() as any;
+      const apiUpdateTime = this.lastApiUpdateTime || nowUTC();
+      const exchangeRates: ExchangeRate[] = [];
+      const availableCurrencies = this.currencyRegistry.getAllCurrencies();
+      const baseCurrencyObj = this.currencyRegistry.getCurrencyByCode(baseCode);
 
-        if (data.result !== 'success') {
-             throw ErrorFactory.createApiError(
-              `API error: ${data.result}`,
-              null, 400, { apiResponse: data, baseCurrency: baseCode }
-            );
-        }
-
-        this.lastCacheRefreshTime = nowUTC();
-        
-        // Check if the API provided valid timestamp data
-        let apiUpdateTime: Date;
-        if (data.time_last_update_unix && typeof data.time_last_update_unix === 'number') {
-          apiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
-          this.lastApiUpdateTime = apiUpdateTime;
-        } else {
-          apiUpdateTime = nowUTC();
-          this.lastApiUpdateTime = apiUpdateTime;
-        }
-        
-        this.time_last_update_utc = data.time_last_update_utc || null;
-        this.time_next_update_utc = data.time_next_update_utc || null;
-
-        const exchangeRates: ExchangeRate[] = [];
-        const availableCurrencies = this.currencyRegistry.getAllCurrencies(); 
-        const baseCurrencyObj = this.currencyRegistry.getCurrencyByCode(baseCode);
-
-        if (!baseCurrencyObj) {
-          throw new Error(`Base currency ${baseCode} not found in registry`);
-        }
-
-        for (const targetCode of Object.keys(data.conversion_rates)) {
-          if (baseCode === targetCode) continue;
-          const targetCurrency = availableCurrencies.find((c: ICurrency) => c.code === targetCode);
-          if (!targetCurrency) continue;
-
-          exchangeRates.push({
-            currencyPair: {
-              source: baseCurrencyObj,
-              target: targetCurrency
-            },
-            rate: data.conversion_rates[targetCode],
-            timestamp: apiUpdateTime
-          });
-        }
-        
-        return exchangeRates;
-
-      } catch (error) {
-        console.error('Error fetching fresh all rates within repository:', error);
-        throw error;
+      if (!baseCurrencyObj) {
+        throw new Error(`Base currency ${baseCode} not found in registry`);
       }
+
+      for (const targetCode of Object.keys(data.conversion_rates)) {
+        if (baseCode === targetCode) continue;
+        
+        const targetCurrency = availableCurrencies.find((c: ICurrency) => c.code === targetCode);
+        if (!targetCurrency) continue;
+
+        exchangeRates.push({
+          currencyPair: {
+            source: baseCurrencyObj,
+            target: targetCurrency
+          },
+          rate: data.conversion_rates[targetCode],
+          timestamp: apiUpdateTime
+        });
+      }
+      
+      return exchangeRates;
     };
     
     const cacheKey = `${this.cacheTag}-all-rates-usd`;
     return unstable_cache(fetchFreshData, [cacheKey], {
       revalidate: this.cacheDuration,
       tags: [this.cacheTag, cacheKey],
-    })().catch(err => {
-      console.error('Error during unstable_cache execution for getAllRates:', err);
-      throw err;
-    });
+    })();
   }
   
   /**

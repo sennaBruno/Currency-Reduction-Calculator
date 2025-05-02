@@ -8,6 +8,7 @@ import {
   parseUTCString,
   formatRelativeTime
 } from '../dateUtils';
+import * as dateFns from 'date-fns';
 
 // Mock the date-fns functions
 jest.mock('date-fns', () => {
@@ -16,7 +17,7 @@ jest.mock('date-fns', () => {
     ...actual,
     format: jest.fn().mockImplementation(() => 'Apr 29, 2025, 12:00:00 PM'),
     formatISO: jest.fn().mockImplementation(() => '2025-04-29T12:00:00.000Z'),
-    formatDistance: jest.fn().mockImplementation((date, baseDate, options) => {
+    formatDistance: jest.fn().mockImplementation((date, baseDate) => {
       if (date.getTime() > baseDate.getTime()) {
         return 'in 1 day';
       } else {
@@ -83,18 +84,18 @@ describe('Date Utils', () => {
     it('formats a date with custom format', () => {
       const date = new Date('2025-04-29T12:00:00.000Z');
       // Mock specific format response
-      jest.spyOn(require('date-fns'), 'format').mockReturnValueOnce('2025-04-29');
+      jest.spyOn(dateFns, 'format').mockReturnValueOnce('2025-04-29');
       expect(formatDate(date, 'yyyy-MM-dd')).toBe('2025-04-29');
     });
 
     it('returns empty string for falsy values', () => {
       expect(formatDate('')).toBe('');
-      expect(formatDate(null as any)).toBe('');
+      expect(formatDate(null as unknown as string)).toBe('');
     });
 
     it('handles invalid dates', () => {
       // Mock invalid date response
-      jest.spyOn(require('date-fns'), 'isValid').mockReturnValueOnce(false);
+      jest.spyOn(dateFns, 'isValid').mockReturnValueOnce(false);
       expect(formatDate('not-a-date')).toBe('Invalid date');
     });
   });
@@ -117,7 +118,7 @@ describe('Date Utils', () => {
 
     it('returns null for invalid ISO string', () => {
       // Mock the isValid function to return false for this test
-      jest.spyOn(require('date-fns'), 'isValid').mockReturnValueOnce(false);
+      jest.spyOn(dateFns, 'isValid').mockReturnValueOnce(false);
       expect(parseISODate('invalid-date')).toBeNull();
     });
 
@@ -137,7 +138,7 @@ describe('Date Utils', () => {
 
     it('returns null for invalid UTC string', () => {
       // Mock the isValid function to return false for this test
-      jest.spyOn(require('date-fns'), 'isValid').mockReturnValueOnce(false);
+      jest.spyOn(dateFns, 'isValid').mockReturnValueOnce(false);
       expect(parseUTCString('invalid-date')).toBeNull();
     });
 
@@ -163,14 +164,14 @@ describe('Date Utils', () => {
 
     it('handles string dates', () => {
       // Mock the formatDistance to return "1 day ago" for this test
-      jest.spyOn(require('date-fns'), 'formatDistance').mockReturnValueOnce('1 day ago');
+      jest.spyOn(dateFns, 'formatDistance').mockReturnValueOnce('1 day ago');
       const dateString = '2025-05-14T10:30:00.000Z'; // 1 day in past from fixed date
       expect(formatRelativeTime(dateString, fixedDate)).toBe('1 day ago');
     });
 
     it('handles invalid dates', () => {
       // Mock isValid to make the date invalid
-      jest.spyOn(require('date-fns'), 'isValid').mockReturnValueOnce(false);
+      jest.spyOn(dateFns, 'isValid').mockReturnValueOnce(false);
       expect(formatRelativeTime('invalid-date', fixedDate)).toBe('Invalid date');
     });
   });

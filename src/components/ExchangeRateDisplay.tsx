@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ExchangeRate, ICurrency } from '../domain/currency';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, RefreshCcwIcon, InfoIcon } from 'lucide-react';
-import { formatDate, parseUTCString, parseISODate, formatRelativeTime } from '../utils/dateUtils';
+import { formatDate, parseUTCString, formatRelativeTime } from '../utils/dateUtils';
 
 interface ExchangeRateDisplayProps {
   sourceCurrency: ICurrency;
@@ -21,6 +21,18 @@ interface ExchangeRateMetadata {
 }
 
 /**
+ * Info tooltip component for better reusability
+ */
+const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
+  <span className="inline-flex items-center ml-1 group relative">
+    <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+    <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
+      {text}
+    </span>
+  </span>
+);
+
+/**
  * Component for displaying the current exchange rate between two currencies
  */
 export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
@@ -31,6 +43,18 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
 }) => {
   const [metadata, setMetadata] = useState<ExchangeRateMetadata | null>(null);
   const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+
+  const formatTimestamp = (dateString?: string | Date): string => 
+    dateString ? formatDate(dateString, 'MMM d, yyyy') : '';
+
+  const formatApiTimestamp = (utcString: string | null): string => 
+    utcString ? formatDate(parseUTCString(utcString), 'MMM d, yyyy') : '';
+    
+  const formatRelativeTimestamp = (utcString: string | null): string => {
+    if (!utcString) return '';
+    const date = parseUTCString(utcString);
+    return date ? formatRelativeTime(date) : '';
+  };
 
   useEffect(() => {
     if (exchangeRate) {
@@ -53,29 +77,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
     }
   };
 
-  const formatTimestamp = (dateString?: string | Date): string => {
-    if (!dateString) return '';
-    return formatDate(dateString, 'MMM d, yyyy');
-  };
-
-  const formatUtcString = (utcString: string | null): string => {
-    if (!utcString) return '';
-    
-    try {
-      const date = parseUTCString(utcString);
-      return date ? formatDate(date, 'MMM d, yyyy') : '';
-    } catch (e) {
-      return '';
-    }
-  };
-
-  const formatRelativeUpdate = (utcString: string | null): string => {
-    if (!utcString) return '';
-    
-    const date = parseUTCString(utcString);
-    return date ? formatRelativeTime(date) : '';
-  };
-
+  // Loading state
   if (isLoading) {
     return (
       <div className="p-4 rounded-md border border-input bg-muted/20 animate-pulse">
@@ -87,6 +89,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
     );
   }
 
+  // Empty state
   if (!exchangeRate) {
     return (
       <div className="p-4 rounded-md border border-input bg-muted/20">
@@ -96,6 +99,46 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
       </div>
     );
   }
+
+  // Render timestamp section based on loading state and available data
+  const renderTimestampSection = () => {
+    if (isMetadataLoading) {
+      return (
+        <span className="flex items-center">
+          <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
+          Checking update time...
+        </span>
+      );
+    }
+    
+    if (metadata?.time_last_update_utc) {
+      return (
+        <div className="flex flex-wrap items-center gap-x-3">
+          <span className="flex items-center">
+            Updated: {formatApiTimestamp(metadata.time_last_update_utc)} 
+            <span className="text-xs text-muted-foreground/70 ml-1">
+              ({formatRelativeTimestamp(metadata.time_last_update_utc)})
+            </span>
+            <InfoTooltip text="This timestamp comes directly from the exchange rate API and shows when they last updated their rates." />
+          </span>
+          
+          {metadata.time_next_update_utc && (
+            <span className="flex items-center">
+              Next: {formatRelativeTimestamp(metadata.time_next_update_utc)}
+              <InfoTooltip text="The ExchangeRate API updates rates once every 24 hours according to our plan." />
+            </span>
+          )}
+        </div>
+      );
+    }
+    
+    return (
+      <span className="flex items-center">
+        Updated: {formatTimestamp(exchangeRate.timestamp)}
+        <InfoTooltip text="Using fallback timestamp from rate data." />
+      </span>
+    );
+  };
 
   return (
     <div className={cn(
@@ -117,47 +160,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
         
         <div className="exchange-rate-timestamp flex items-center text-xs text-muted-foreground mt-2">
           <CalendarIcon className="h-3 w-3 mr-1" />
-          {isMetadataLoading ? (
-            <span className="flex items-center">
-              <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
-              Checking update time...
-            </span>
-          ) : metadata?.time_last_update_utc ? (
-            <div className="flex flex-wrap items-center gap-x-3">
-              <span className="flex items-center">
-                Updated: {formatUtcString(metadata.time_last_update_utc)} 
-                <span className="text-xs text-muted-foreground/70 ml-1">({formatRelativeUpdate(metadata.time_last_update_utc)})</span>
-                <span className="inline-flex items-center ml-1 group relative">
-                  <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
-                  <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-                    This timestamp comes directly from the exchange rate API and shows when they last updated their rates.
-                  </span>
-                </span>
-              </span>
-              
-              {metadata.time_next_update_utc && (
-                <span className="flex items-center">
-                  Next: {formatRelativeUpdate(metadata.time_next_update_utc)}
-                  <span className="inline-flex items-center ml-1 group relative">
-                    <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
-                    <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-                      The ExchangeRate API updates rates once every 24 hours according to our plan.
-                    </span>
-                  </span>
-                </span>
-              )}
-            </div>
-          ) : (
-            <span className="flex items-center">
-              Updated: {formatTimestamp(exchangeRate.timestamp)}
-              <span className="inline-flex items-center ml-1 group relative">
-                <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
-                <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-                  Using fallback timestamp from rate data.
-                </span>
-              </span>
-            </span>
-          )}
+          {renderTimestampSection()}
         </div>
       </div>
     </div>
