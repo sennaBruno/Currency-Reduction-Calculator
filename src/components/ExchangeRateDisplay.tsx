@@ -55,7 +55,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
 
   const formatTimestamp = (dateString?: string | Date): string => {
     if (!dateString) return '';
-    return formatDate(dateString);
+    return formatDate(dateString, 'MMM d, yyyy');
   };
 
   const formatUtcString = (utcString: string | null): string => {
@@ -63,10 +63,9 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
     
     try {
       const date = parseUTCString(utcString);
-      
-      return date ? formatDate(date) : utcString;
+      return date ? formatDate(date, 'MMM d, yyyy') : '';
     } catch (e) {
-      return utcString;
+      return '';
     }
   };
 
@@ -118,53 +117,47 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
         
         <div className="exchange-rate-timestamp flex items-center text-xs text-muted-foreground mt-2">
           <CalendarIcon className="h-3 w-3 mr-1" />
-          <span>
-            {isMetadataLoading ? (
+          {isMetadataLoading ? (
+            <span className="flex items-center">
+              <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
+              Checking update time...
+            </span>
+          ) : metadata?.time_last_update_utc ? (
+            <div className="flex flex-wrap items-center gap-x-3">
               <span className="flex items-center">
-                <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
-                Checking update time...
-              </span>
-            ) : metadata?.time_last_update_utc ? (
-              <div className="flex flex-col space-y-1">
-                <div>
-                  Last updated: {formatUtcString(metadata.time_last_update_utc)}
-                  <span className="text-xs text-muted-foreground/70 ml-1">
-                    ({formatRelativeUpdate(metadata.time_last_update_utc)})
-                  </span>
-                  <span className="inline-flex items-center ml-1 group relative">
-                    <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
-                    <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-                      This timestamp comes directly from the exchange rate API and shows when they last updated their rates.
-                    </span>
-                  </span>
-                </div>
-                {metadata.time_next_update_utc && (
-                  <div>
-                    Next update: {formatUtcString(metadata.time_next_update_utc)}
-                    <span className="text-xs text-muted-foreground/70 ml-1">
-                      ({formatRelativeUpdate(metadata.time_next_update_utc)})
-                    </span>
-                    <span className="inline-flex items-center ml-1 group relative">
-                      <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
-                      <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-                        The ExchangeRate API updates rates once every 24 hours according to our plan.
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                Last updated: {formatTimestamp(exchangeRate.timestamp)}
+                Updated: {formatUtcString(metadata.time_last_update_utc)} 
+                <span className="text-xs text-muted-foreground/70 ml-1">({formatRelativeUpdate(metadata.time_last_update_utc)})</span>
                 <span className="inline-flex items-center ml-1 group relative">
                   <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
                   <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-                    Using fallback timestamp from rate data.
+                    This timestamp comes directly from the exchange rate API and shows when they last updated their rates.
                   </span>
                 </span>
-              </>
-            )}
-          </span>
+              </span>
+              
+              {metadata.time_next_update_utc && (
+                <span className="flex items-center">
+                  Next: {formatRelativeUpdate(metadata.time_next_update_utc)}
+                  <span className="inline-flex items-center ml-1 group relative">
+                    <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                    <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
+                      The ExchangeRate API updates rates once every 24 hours according to our plan.
+                    </span>
+                  </span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="flex items-center">
+              Updated: {formatTimestamp(exchangeRate.timestamp)}
+              <span className="inline-flex items-center ml-1 group relative">
+                <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
+                  Using fallback timestamp from rate data.
+                </span>
+              </span>
+            </span>
+          )}
         </div>
       </div>
     </div>
