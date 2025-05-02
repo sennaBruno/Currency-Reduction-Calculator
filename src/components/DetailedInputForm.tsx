@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -68,22 +68,32 @@ interface DetailedInputFormProps {
   onSubmitDetailed: (data: { steps: InputStep[] }) => void;
   onReset?: () => void;
   isLoading?: boolean;
+  exchangeRate?: number | null;
 }
 
 const DetailedInputForm: React.FC<DetailedInputFormProps> = ({ 
   onSubmitTraditional, 
   onSubmitDetailed,
   onReset, 
-  isLoading = false 
+  isLoading = false,
+  exchangeRate = null 
 }) => {
   const [activeTab, setActiveTab] = useState<string>('traditional');
   const [detailedSteps, setDetailedSteps] = useState<InputStep[]>([]);
+  const [useAutoRate, setUseAutoRate] = useState<boolean>(true);
 
   // Traditional form handling
   const traditionalForm = useForm<TraditionalFormValues>({
     resolver: zodResolver(traditionalFormSchema),
     mode: 'onSubmit'
   });
+
+  // Apply exchange rate when it changes or when the checkbox state changes
+  useEffect(() => {
+    if (exchangeRate && useAutoRate) {
+      traditionalForm.setValue('exchangeRate', exchangeRate);
+    }
+  }, [exchangeRate, useAutoRate, traditionalForm]);
 
   // Detailed form handling (doesn't use React Hook Form in the same way)
   const handleDetailedSubmit = () => {
@@ -196,18 +206,34 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="exchangeRate">
-                Exchange Rate (USD → BRL)
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium" htmlFor="exchangeRate">
+                  Exchange Rate (USD → BRL)
+                </label>
+                {exchangeRate !== null && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="useAutoRate"
+                      checked={useAutoRate}
+                      onChange={(e) => setUseAutoRate(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    <label htmlFor="useAutoRate" className="text-xs text-muted-foreground cursor-pointer">
+                      Use auto-fetched rate
+                    </label>
+                  </div>
+                )}
+              </div>
               <input
                 {...traditionalForm.register('exchangeRate', { valueAsNumber: true })}
                 type="number"
                 id="exchangeRate"
                 className="w-full px-3 py-2 border rounded-md"
                 min={0}
-                step="0.01"
+                step="0.0001"
                 placeholder="Enter exchange rate"
-                disabled={isLoading}
+                disabled={isLoading || useAutoRate}
               />
               {traditionalForm.formState.errors.exchangeRate && (
                 <p className="text-sm text-red-500">

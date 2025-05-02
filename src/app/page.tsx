@@ -64,35 +64,30 @@ export default function Home() {
 
   // Updated traditional calculation handler
   const handleTraditionalCalculate = async (data: { 
-    initialAmountUSD: number; 
+    initialAmountUSD: number;
+    exchangeRate: number; 
     reductions: string;
   }) => {
-    // Check if rate is available before proceeding
-    if (exchangeRate === null) {
-      setError(
-        exchangeRateError || 
-        'Exchange rate is not available. Cannot perform calculation. Please try refreshing.'
-      );
-      setCalculationResult(null);
-      setDetailedResult(null);
-      return;
-    }
-
+    // Use the exchange rate from the form data
+    // (which may be auto-populated or manually entered)
+    const rateToUse = data.exchangeRate;
+    
     setIsLoading(true);
     setError(undefined);
     setCalculationMode('simple');
 
-    // Store inputs including the fetched rate for download
+    // Store inputs for download
     const apiPayload = {
-      ...data,
-      exchangeRate: exchangeRate,
+      initialAmountUSD: data.initialAmountUSD,
+      exchangeRate: rateToUse,
+      reductions: data.reductions,
     };
     setFormInputs(apiPayload);
 
     try {
       const result = await CalculatorService.processSimpleCalculation(
         data.initialAmountUSD,
-        exchangeRate,
+        rateToUse,
         data.reductions
       );
       
@@ -256,7 +251,8 @@ export default function Home() {
                 onSubmitTraditional={handleTraditionalCalculate} 
                 onSubmitDetailed={handleDetailedCalculate}
                 onReset={handleReset} 
-                isLoading={isLoading} 
+                isLoading={isLoading}
+                exchangeRate={exchangeRate}
               />
             </CardContent>
           </Card>
