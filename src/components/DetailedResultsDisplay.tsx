@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { ICurrency } from '../domain/currency';
+import { formatCurrency } from '../domain/currency/currencyConversion.utils';
 
 interface DetailedCalculationStep {
   step: number;
@@ -30,24 +32,17 @@ interface DetailedResultsDisplayProps {
   final_result: number;
   error?: string;
   onDownload?: () => void;
+  sourceCurrency?: ICurrency;
+  targetCurrency?: ICurrency;
 }
-
-// Helper function to format currency values
-const formatCurrency = (value: number | undefined, currency: string): string => {
-  if (value === undefined) return 'N/A';
-  return new Intl.NumberFormat('en-US', { 
-    style: 'currency', 
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);
-};
 
 const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({ 
   steps, 
   final_result,
   error,
-  onDownload
+  onDownload,
+  sourceCurrency = { code: 'USD', symbol: '$', name: 'US Dollar' },
+  targetCurrency = { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
 }) => {
   // If there's an error, display the error message
   if (error) {
@@ -74,8 +69,27 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
     );
   }
 
-  // Find the currency from steps (assuming first step with a positive result is the currency we want)
-  const currency = steps.some(step => step.result_intermediate > 0) ? 'BRL' : 'USD';
+  // Determine which currency to display for each step
+  const getCurrencyForStep = (step: DetailedCalculationStep): ICurrency => {
+    // Decide based on the description if it contains conversion or only involves one currency
+    if (step.description.toLowerCase().includes('convert')) {
+      // For conversion steps, check if it's the first one to determine source vs target
+      return step.result_running_total === step.result_intermediate 
+        ? sourceCurrency 
+        : targetCurrency;
+    }
+    
+    // For steps after conversion, use target currency
+    const conversionIndex = steps.findIndex(s => 
+      s.description.toLowerCase().includes('convert')
+    );
+    
+    if (conversionIndex === -1 || step.step <= conversionIndex) {
+      return sourceCurrency;
+    }
+    
+    return targetCurrency;
+  };
   
   return (
     <Card className="shadow-sm">
@@ -96,30 +110,33 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {steps.map((step) => (
-                <TableRow key={step.step} className={step.step % 2 === 0 ? 'bg-muted/20' : ''}>
-                  <TableCell className="font-medium">{step.step}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p>{step.description || 'N/A'}</p>
-                      {step.explanation && (
-                        <p className="text-xs text-muted-foreground mt-1">{step.explanation}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-sm bg-muted/30 px-1 py-0.5 rounded">
-                      {step.calculation_details || 'N/A'}
-                    </code>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(step.result_intermediate, currency)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(step.result_running_total, currency)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {steps.map((step) => {
+                const stepCurrency = getCurrencyForStep(step);
+                return (
+                  <TableRow key={step.step} className={step.step % 2 === 0 ? 'bg-muted/20' : ''}>
+                    <TableCell className="font-medium">{step.step}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p>{step.description || 'N/A'}</p>
+                        {step.explanation && (
+                          <p className="text-xs text-muted-foreground mt-1">{step.explanation}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-sm bg-muted/30 px-1 py-0.5 rounded">
+                        {step.calculation_details || 'N/A'}
+                      </code>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(step.result_intermediate, stepCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(step.result_running_total, stepCurrency)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -128,7 +145,7 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
         <Card className="mt-4 bg-accent/10 border-accent/20">
           <CardContent className="py-3">
             <p className="font-medium">
-              Final amount after all calculations: {formatCurrency(final_result, currency)}
+              Final amount after all calculations: {formatCurrency(final_result, targetCurrency)}
             </p>
           </CardContent>
         </Card>

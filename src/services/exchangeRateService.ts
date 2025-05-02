@@ -1,10 +1,22 @@
 import { ApiService } from './api';
+import { ICurrency } from '../domain/currency';
 
 /**
  * Response type from the exchange rate API
  */
 interface ExchangeRateResponse {
   rate: number;
+}
+
+interface CurrencyPairExchangeRateResponse {
+  rate: {
+    rate: number;
+    currencyPair: {
+      source: ICurrency;
+      target: ICurrency;
+    };
+    timestamp: string;
+  };
 }
 
 /**
@@ -26,6 +38,29 @@ export class ExchangeRateService {
       return data.rate;
     } catch (error) {
       console.error("Exchange rate fetch error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches the exchange rate between any two currencies
+   * @param sourceCurrency The source currency
+   * @param targetCurrency The target currency
+   * @returns The exchange rate value
+   */
+  static async getExchangeRateForPair(sourceCurrency: ICurrency, targetCurrency: ICurrency): Promise<number> {
+    try {
+      const data = await ApiService.get<CurrencyPairExchangeRateResponse>(
+        `/api/exchange-rates?from=${sourceCurrency.code}&to=${targetCurrency.code}`
+      );
+      
+      if (typeof data.rate?.rate !== 'number') {
+        throw new Error('Invalid rate format received');
+      }
+      
+      return data.rate.rate;
+    } catch (error) {
+      console.error(`Exchange rate fetch error for ${sourceCurrency.code} to ${targetCurrency.code}:`, error);
       throw error;
     }
   }

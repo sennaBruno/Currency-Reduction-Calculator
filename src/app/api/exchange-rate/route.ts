@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ExchangeRateService } from '../../../application/exchange-rate/exchangeRateService';
+import { ExchangeRateApiClient } from '../../../infrastructure/api/exchangeRateApi.client';
 
-// Create an instance of the exchange rate service
-const exchangeRateService = new ExchangeRateService();
+// Create an instance of the exchange rate service with our ExchangeRateApiClient
+const exchangeRateRepository = new ExchangeRateApiClient();
+const exchangeRateService = new ExchangeRateService(exchangeRateRepository);
 
 export async function GET() {
   try {

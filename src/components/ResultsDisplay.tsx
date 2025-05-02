@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { ICurrency } from '../domain/currency';
+import { formatCurrency } from '../domain/currency/currencyConversion.utils';
 
 // Legacy interface
 interface CalculationStep {
@@ -36,24 +38,17 @@ interface ResultsDisplayProps {
   initialBRLNoReduction: number;
   error?: string;
   onDownload?: () => void;
+  sourceCurrency?: ICurrency;
+  targetCurrency?: ICurrency;
 }
-
-// Helper function to format currency values
-const formatCurrency = (value: number | undefined, currency: string): string => {
-  if (value === undefined || isNaN(Number(value))) return 'N/A';
-  return new Intl.NumberFormat('en-US', { 
-    style: 'currency', 
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);
-};
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
   steps, 
   initialBRLNoReduction,
   error,
-  onDownload
+  onDownload,
+  sourceCurrency = { code: 'USD', symbol: '$', name: 'US Dollar' },
+  targetCurrency = { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
 }) => {
   // If there's an error, display the error message
   if (error) {
@@ -104,11 +99,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <CardTitle>Calculation Results</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Initial USD to BRL conversion */}
+        {/* Initial Currency Conversion */}
         <Card className="mb-4 bg-primary/10 border-primary/20">
           <CardContent className="py-3">
             <p className="font-medium">
-              Initial BRL amount: {formatCurrency(initialBRLNoReduction, 'BRL')}
+              Initial {targetCurrency.code} amount: {formatCurrency(initialBRLNoReduction, targetCurrency)}
             </p>
           </CardContent>
         </Card>
@@ -119,10 +114,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             <TableHeader>
               <TableRow>
                 <TableHead>Step</TableHead>
-                <TableHead>Initial Value (BRL)</TableHead>
+                <TableHead>Initial Value ({targetCurrency.code})</TableHead>
                 <TableHead>Reduction (%)</TableHead>
-                <TableHead>Reduction Amount (BRL)</TableHead>
-                <TableHead>Final Value (BRL)</TableHead>
+                <TableHead>Reduction Amount ({targetCurrency.code})</TableHead>
+                <TableHead>Final Value ({targetCurrency.code})</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -147,7 +142,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   <TableRow key={step.step} className={step.step % 2 === 0 ? 'bg-muted/20' : ''}>
                     <TableCell className="font-medium">{step.step}</TableCell>
                     <TableCell>
-                      {formatCurrency(hasLegacyFormat ? step.initialBRL : undefined, 'BRL')}
+                      {formatCurrency(hasLegacyFormat ? step.initialBRL : undefined, targetCurrency)}
                     </TableCell>
                     <TableCell>
                       {hasLegacyFormat && step.reductionPercentage !== undefined
@@ -155,10 +150,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                         : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(reductionAmount, 'BRL')}
+                      {formatCurrency(reductionAmount, targetCurrency)}
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(stepFinalValue, 'BRL')}
+                      {formatCurrency(stepFinalValue, targetCurrency)}
                     </TableCell>
                   </TableRow>
                 );
@@ -171,7 +166,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <Card className="mt-4 bg-accent/10 border-accent/20">
           <CardContent className="py-3">
             <p className="font-medium">
-              Final amount after all reductions: {formatCurrency(finalValue, 'BRL')}
+              Final amount after all calculations: {formatCurrency(finalValue, targetCurrency)}
             </p>
           </CardContent>
         </Card>

@@ -1,4 +1,5 @@
 import { ICalculationResult, ICalculationStep, ICalculatorService } from '../../domain/calculator/calculatorService.interface';
+import { ICurrency } from '../../domain/currency';
 
 /**
  * Service class for calculator operations
@@ -7,9 +8,15 @@ export class CalculatorService implements ICalculatorService {
   /**
    * Processes a detailed calculation with multiple steps
    * @param steps The calculation steps to process
+   * @param sourceCurrency The source currency
+   * @param targetCurrency The target currency
    * @returns The calculation results with intermediate and final values
    */
-  async processDetailedCalculation(steps: ICalculationStep[]): Promise<{
+  async processDetailedCalculation(
+    steps: ICalculationStep[], 
+    sourceCurrency?: ICurrency,
+    targetCurrency?: ICurrency
+  ): Promise<{
     steps: ICalculationResult[];
     final_result: number;
   }> {
@@ -45,7 +52,7 @@ export class CalculatorService implements ICalculatorService {
             case 'initial':
               // For initial value steps
               resultIntermediate = inputStep.value;
-              calculationDetails = `Initial value: ${resultIntermediate.toFixed(2)}`;
+              calculationDetails = `Initial value: ${resultIntermediate.toFixed(2)} ${sourceCurrency?.code || 'USD'}`;
               runningTotal = resultIntermediate;
               break;
 
@@ -56,7 +63,7 @@ export class CalculatorService implements ICalculatorService {
               }
               const previousValue = runningTotal;
               resultIntermediate = inputStep.value * previousValue;
-              calculationDetails = `${previousValue.toFixed(2)} × ${inputStep.value.toFixed(3)} = ${resultIntermediate.toFixed(2)}`;
+              calculationDetails = `${previousValue.toFixed(2)} ${sourceCurrency?.code || 'USD'} × ${inputStep.value.toFixed(3)} = ${resultIntermediate.toFixed(2)} ${targetCurrency?.code || 'BRL'}`;
               runningTotal = resultIntermediate;
               break;
 
@@ -135,28 +142,32 @@ export class CalculatorService implements ICalculatorService {
   }
 
   /**
-   * Processes a simple calculation with USD amount, exchange rate and percentage reductions
-   * @param initialAmountUSD The initial amount in USD
-   * @param exchangeRate The USD to BRL exchange rate
+   * Processes a simple calculation with initial amount, exchange rate and percentage reductions
+   * @param initialAmount The initial amount in the source currency
+   * @param exchangeRate The exchange rate between source and target currencies
    * @param reductions A comma-separated string of percentage reductions
+   * @param sourceCurrency The source currency
+   * @param targetCurrency The target currency
    * @returns The calculation results with intermediate and final values
    */
   async processSimpleCalculation(
-    initialAmountUSD: number,
+    initialAmount: number,
     exchangeRate: number,
-    reductions: string
+    reductions: string,
+    sourceCurrency?: ICurrency,
+    targetCurrency?: ICurrency
   ): Promise<{
     steps: ICalculationResult[];
     initialBRLNoReduction: number;
     final_result: number;
   }> {
     // Validate input
-    if (!initialAmountUSD || !exchangeRate || !reductions) {
+    if (!initialAmount || !exchangeRate || !reductions) {
       throw new Error("Missing required fields");
     }
     
     // Validate initial amount and exchange rate are positive
-    if (initialAmountUSD <= 0 || exchangeRate <= 0) {
+    if (initialAmount <= 0 || exchangeRate <= 0) {
       throw new Error("Initial amount and exchange rate must be positive numbers");
     }
     
@@ -177,54 +188,53 @@ export class CalculatorService implements ICalculatorService {
       throw new Error("All reductions must be between 0 and 100");
     }
     
-    // Calculate initial BRL amount
-    const initialBRLNoReduction = initialAmountUSD * exchangeRate;
+    // Calculate initial target currency amount
+    const initialTargetAmount = initialAmount * exchangeRate;
     
     // Initialize calculation variables
     const steps: ICalculationResult[] = [];
-    let currentBalanceBRL = initialBRLNoReduction;
+    let currentBalance = initialTargetAmount;
     
     try {
       // Calculate each reduction step
       for (let i = 0; i < reductionPercentages.length; i++) {
         const reductionPercentage = reductionPercentages[i];
-        const initialBRL = currentBalanceBRL;
-        const reductionAmountBRL = currentBalanceBRL * (reductionPercentage / 100);
-        const finalBRL = currentBalanceBRL - reductionAmountBRL;
+        const initialValue = currentBalance;
+        const reductionAmount = currentBalance * (reductionPercentage / 100);
+        const finalValue = currentBalance - reductionAmount;
         
         // Check if reduction would result in zero or negative value
-        if (finalBRL <= 0) {
+        if (finalValue <= 0) {
           throw new Error("Reduction would result in zero or negative value. Please adjust percentages.");
         }
         
         // Add step to results with enhanced details for backward compatibility
         steps.push({
           step: i + 1,
-          initialBRL: initialBRL,
+          initialBRL: initialValue, // For backward compatibility
           reductionPercentage: reductionPercentage,
-          reductionAmountBRL: reductionAmountBRL,
-          finalBRL: finalBRL,
+          reductionAmountBRL: reductionAmount, // For backward compatibility
+          finalBRL: finalValue, // For backward compatibility
           description: `Reduction ${i + 1}: ${reductionPercentage}%`,
-          calculation_details: `${initialBRL.toFixed(2)} × ${reductionPercentage/100} = ${reductionAmountBRL.toFixed(2)}`,
-          result_intermediate: reductionAmountBRL,
-          result_running_total: finalBRL,
-          explanation: `Applying ${reductionPercentage}% reduction`
+          calculation_details: `${initialValue.toFixed(2)} ${targetCurrency?.code || 'BRL'} - ${reductionPercentage}% = ${finalValue.toFixed(2)} ${targetCurrency?.code || 'BRL'}`,
+          result_intermediate: reductionAmount,
+          result_running_total: finalValue
         });
         
-        // Update current balance for next iteration
-        currentBalanceBRL = finalBRL;
+        // Update balance for next step
+        currentBalance = finalValue;
       }
       
-      // Return successful calculation result
+      // Return the calculation result
       return {
         steps,
-        initialBRLNoReduction,
-        final_result: currentBalanceBRL
+        initialBRLNoReduction: initialTargetAmount,
+        final_result: currentBalance
       };
     } catch (error: Error | unknown) {
       console.error('[CalculatorService] Error processing simple calculation:', 
         error instanceof Error ? error.message : 'Unknown error');
-      throw new Error('Invalid calculation parameters. Please check your inputs and try again.');
+      throw error;
     }
   }
 } 

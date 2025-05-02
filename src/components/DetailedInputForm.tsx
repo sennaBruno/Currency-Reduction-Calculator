@@ -1,82 +1,76 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import DetailedStepsInput, { InputStep } from './DetailedStepsInput';
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import * as z from 'zod';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Checkbox } from "../components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import DetailedStepsInput from './DetailedStepsInput';
+import { CurrencySelector } from './CurrencySelector';
+import { ICurrency } from '../domain/currency';
+import { getSourceCurrency, getTargetCurrency, createExampleCalculationSteps } from '../utils/currencyUtils';
 
-// Define schema for traditional form validation (for backward compatibility)
+// Unused regex - keeping for future reference
+// const percentageListRegex = /^\s*\d+(\.\d+)?%(,\s*\d+(\.\d+)?%)*\s*$/;
+
+/**
+ * Validation schema for the traditional calculator form
+ */
 const traditionalFormSchema = z.object({
-  initialAmountUSD: z
-    .number({ 
-      required_error: 'Initial amount is required',
-      invalid_type_error: 'Initial amount must be a number'
-    })
-    .positive('Amount must be greater than 0')
-    .max(1000000000, 'Value too large (max: 1,000,000,000)'),
+  initialAmount: z
+    .number({ required_error: 'Initial amount is required' })
+    .min(0.01, 'Amount must be greater than 0')
+    .max(1000000000, 'Amount must be less than 1 billion'),
   exchangeRate: z
-    .number({ 
-      required_error: 'Exchange rate is required',
-      invalid_type_error: 'Exchange rate must be a number'
-    })
-    .positive('Exchange rate must be greater than 0')
-    .max(10000, 'Exchange rate too large (max: 10,000)'),
+    .number({ required_error: 'Exchange rate is required' })
+    .min(0.0001, 'Rate must be greater than 0')
+    .max(10000, 'Rate must be less than 10,000'),
   reductions: z
     .string()
-    .min(1, 'At least one reduction percentage is required')
-    .max(200, 'Input too long')
     .refine(
-      (val) => {
-        // Check if all values are valid percentages between 0-100
-        const percentages = val
-          .split(',')
-          .map(p => p.trim())
-          .filter(p => p !== '')
-          .map(p => Number(p));
-        
-        // Check for too many reductions
-        if (percentages.length > 20) {
-          return false;
-        }
-        
-        return percentages.every(p => !isNaN(p) && p >= 0 && p <= 100);
-      },
-      {
-        message: 'All percentages must be valid numbers between 0 and 100 (max 20 reductions)'
-      }
+      (val) => !val || val.split(',').every(v => {
+        const trimmed = v.trim();
+        return !trimmed || !isNaN(parseFloat(trimmed));
+      }),
+      { message: 'Reductions must be comma-separated numbers' }
     )
+    .default('')
 });
 
 type TraditionalFormValues = z.infer<typeof traditionalFormSchema>;
 
-// Schema for detailed steps - Removed as it wasn't used for validation
-/*
-const detailedFormSchema = z.object({
-  steps: z.array(
-    z.object({
-      description: z.string().min(1, 'Description is required'),
-      type: z.enum(['initial', 'exchange_rate', 'percentage_reduction', 'fixed_reduction', 'addition', 'custom']),
-      value: z.number({
-        required_error: 'Value is required',
-        invalid_type_error: 'Value must be a number'
-      }),
-      explanation: z.string().optional()
-    })
-  ).min(1, 'At least one calculation step is required')
-});
+/**
+ * Definition of a calculation step for the detailed calculator
+ */
+export interface InputStep {
+  description: string;
+  type: 'initial' | 'exchange_rate' | 'percentage_reduction' | 'fixed_reduction' | 'addition' | 'custom';
+  value: number;
+  explanation?: string;
+}
 
-type DetailedFormValues = z.infer<typeof detailedFormSchema>;
-*/
-
+/**
+ * Props for the DetailedInputForm component
+ */
 interface DetailedInputFormProps {
-  onSubmitTraditional: (data: TraditionalFormValues) => void;
-  onSubmitDetailed: (data: { steps: InputStep[] }) => void;
+  onSubmitTraditional: (data: TraditionalFormValues & { 
+    sourceCurrency: ICurrency;
+    targetCurrency: ICurrency;
+  }) => void;
+  onSubmitDetailed: (data: { 
+    steps: InputStep[];
+    sourceCurrency: ICurrency;
+    targetCurrency: ICurrency;
+  }) => void;
   onReset?: () => void;
   isLoading?: boolean;
   exchangeRate?: number | null;
+  availableCurrencies: ICurrency[];
+  onCurrencyChange?: (sourceCurrency: ICurrency, targetCurrency: ICurrency) => void;
 }
 
 const DetailedInputForm: React.FC<DetailedInputFormProps> = ({ 
@@ -84,16 +78,48 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
   onSubmitDetailed,
   onReset, 
   isLoading = false,
-  exchangeRate = null 
+  exchangeRate = null,
+  availableCurrencies = [],
+  onCurrencyChange
 }) => {
   const [activeTab, setActiveTab] = useState<string>('traditional');
   const [detailedSteps, setDetailedSteps] = useState<InputStep[]>([]);
   const [useAutoRate, setUseAutoRate] = useState<boolean>(true);
+  
+  // Use currency utility functions for initial state
+  const [sourceCurrency, setSourceCurrency] = useState<ICurrency>(
+    getSourceCurrency(availableCurrencies)
+  );
+  
+  const [targetCurrency, setTargetCurrency] = useState<ICurrency>(
+    getTargetCurrency(availableCurrencies, sourceCurrency)
+  );
+
+  // Update currency states when availableCurrencies changes
+  useEffect(() => {
+    if (availableCurrencies.length > 0) {
+      // Get updated currencies using utility functions
+      const newSourceCurrency = getSourceCurrency(availableCurrencies);
+      setSourceCurrency(newSourceCurrency);
+      
+      const newTargetCurrency = getTargetCurrency(
+        availableCurrencies, 
+        newSourceCurrency
+      );
+      setTargetCurrency(newTargetCurrency);
+    }
+  }, [availableCurrencies]);
 
   // Traditional form handling
   const traditionalForm = useForm<TraditionalFormValues>({
-    resolver: zodResolver(traditionalFormSchema),
-    mode: 'onSubmit'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(traditionalFormSchema) as any,
+    mode: 'onSubmit',
+    defaultValues: {
+      initialAmount: undefined,
+      exchangeRate: undefined,
+      reductions: ''
+    }
   });
 
   // Apply exchange rate when it changes or when the checkbox state changes
@@ -166,20 +192,28 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
     );
 
     if (isValid) {
-      onSubmitDetailed({ steps: detailedSteps });
+      onSubmitDetailed({ 
+        steps: detailedSteps,
+        sourceCurrency,
+        targetCurrency 
+      });
     } else {
       // Show error message - would be better with a proper form validation library
       alert('Please fill in all required fields for each step');
     }
   };
 
-  const handleTraditionalSubmit = (data: TraditionalFormValues) => {
-    onSubmitTraditional(data);
+  const handleTraditionalSubmit: SubmitHandler<TraditionalFormValues> = (data) => {
+    onSubmitTraditional({
+      ...data,
+      sourceCurrency,
+      targetCurrency
+    });
   };
 
   const handleReset = () => {
     traditionalForm.reset({
-      initialAmountUSD: undefined,
+      initialAmount: undefined,
       exchangeRate: undefined,
       reductions: ''
     });
@@ -190,106 +224,114 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
   };
 
   // Helper to create example calculation
-  const createExampleCalculation = () => {
-    const exampleSteps: InputStep[] = [
-      {
-        description: 'Initial value in USD',
-        type: 'initial',
-        value: 3000,
-        explanation: 'Starting with 2/3 of USD 4,500'
-      },
-      {
-        description: 'Convert to BRL',
-        type: 'exchange_rate',
-        value: 5.673,
-        explanation: 'Using the exchange rate of 1.000 USD = 5.673 BRL'
-      },
-      {
-        description: '- 1% (transfer fee)',
-        type: 'percentage_reduction',
-        value: 1,
-        explanation: 'Transfer fee'
-      },
-      {
-        description: '- 6.4% of remainder (tax)',
-        type: 'percentage_reduction',
-        value: 6.4,
-        explanation: 'Tax on the transferred amount'
-      }
-    ];
-
+  const handleCreateExampleCalculation = () => {
+    // Use the utility function to create example steps
+    const exampleSteps = createExampleCalculationSteps(
+      sourceCurrency,
+      targetCurrency,
+      exchangeRate
+    );
+    
     setDetailedSteps(exampleSteps);
+  };
+
+  // Function to handle currency changes
+  const handleSourceCurrencyChange = (currency: ICurrency) => {
+    setSourceCurrency(currency);
+    // Call the onCurrencyChange callback if available
+    if (onCurrencyChange && targetCurrency) {
+      onCurrencyChange(currency, targetCurrency);
+    }
+  };
+
+  const handleTargetCurrencyChange = (currency: ICurrency) => {
+    setTargetCurrency(currency);
+    // Call the onCurrencyChange callback if available
+    if (onCurrencyChange && sourceCurrency) {
+      onCurrencyChange(sourceCurrency, currency);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <Tabs 
-        defaultValue="traditional" 
-        value={activeTab} 
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="traditional" disabled={isLoading}>
-            Simple Mode
-          </TabsTrigger>
-          <TabsTrigger value="detailed" disabled={isLoading}>
-            Detailed Mode
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <CurrencySelector
+          currencies={availableCurrencies}
+          selectedCurrency={sourceCurrency}
+          onChange={handleSourceCurrencyChange}
+          label="Source Currency"
+        />
+        <CurrencySelector
+          currencies={availableCurrencies}
+          selectedCurrency={targetCurrency}
+          onChange={handleTargetCurrencyChange}
+          label="Target Currency"
+        />
+      </div>
 
-        <TabsContent value="traditional" className="mt-4">
-          <form className="space-y-6" onSubmit={traditionalForm.handleSubmit(handleTraditionalSubmit)}>
+      {exchangeRate !== null && sourceCurrency && targetCurrency && (
+        <ExchangeRateDisplay
+          sourceCurrency={sourceCurrency}
+          targetCurrency={targetCurrency}
+          exchangeRate={{
+            currencyPair: {
+              source: sourceCurrency,
+              target: targetCurrency
+            },
+            rate: exchangeRate,
+            timestamp: new Date()
+          }}
+        />
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="traditional">Traditional Calculator</TabsTrigger>
+          <TabsTrigger value="detailed">Detailed Calculator</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="traditional" className="space-y-4 mt-4">
+          <form onSubmit={traditionalForm.handleSubmit(handleTraditionalSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="initialAmountUSD">
-                Initial Amount (USD)
-              </label>
-              <input
-                {...traditionalForm.register('initialAmountUSD', { valueAsNumber: true })}
+              <Label htmlFor="initialAmount">Initial Amount ({sourceCurrency.code})</Label>
+              <Input
+                id="initialAmount"
                 type="number"
-                id="initialAmountUSD"
-                className="w-full px-3 py-2 border rounded-md"
-                min={0}
                 step="0.01"
-                placeholder="Enter amount in USD"
-                disabled={isLoading}
+                placeholder="Enter initial amount"
+                {...traditionalForm.register('initialAmount', { valueAsNumber: true })}
               />
-              {traditionalForm.formState.errors.initialAmountUSD && (
+              {traditionalForm.formState.errors.initialAmount && (
                 <p className="text-sm text-red-500">
-                  {traditionalForm.formState.errors.initialAmountUSD.message}
+                  {traditionalForm.formState.errors.initialAmount.message}
                 </p>
               )}
             </div>
-
+            
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" htmlFor="exchangeRate">
-                  Exchange Rate (USD → BRL)
-                </label>
-                {exchangeRate !== null && (
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="useAutoRate"
-                      checked={useAutoRate}
-                      onChange={(e) => setUseAutoRate(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor="useAutoRate" className="text-xs text-muted-foreground cursor-pointer">
-                      Use auto-fetched rate
-                    </label>
-                  </div>
-                )}
+                <Label htmlFor="exchangeRate">Exchange Rate ({sourceCurrency.code} to {targetCurrency.code})</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="useAutoRate" 
+                    checked={useAutoRate}
+                    onCheckedChange={(checked: boolean | "indeterminate") => setUseAutoRate(!!checked)}
+                  />
+                  <label 
+                    htmlFor="useAutoRate" 
+                    className="text-sm text-muted-foreground cursor-pointer"
+                  >
+                    Use auto rate
+                  </label>
+                </div>
               </div>
-              <input
-                {...traditionalForm.register('exchangeRate', { valueAsNumber: true })}
-                type="number"
+              <Input
                 id="exchangeRate"
-                className="w-full px-3 py-2 border rounded-md"
-                min={0}
+                type="number"
                 step="0.0001"
                 placeholder="Enter exchange rate"
-                disabled={isLoading || useAutoRate}
+                disabled={useAutoRate && exchangeRate !== null}
+                {...traditionalForm.register('exchangeRate', { valueAsNumber: true })}
               />
               {traditionalForm.formState.errors.exchangeRate && (
                 <p className="text-sm text-red-500">
@@ -297,90 +339,79 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
                 </p>
               )}
             </div>
-
+            
             <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="reductions">
-                Reductions (%)
-              </label>
-              <input
-                {...traditionalForm.register('reductions')}
-                type="text"
+              <Label htmlFor="reductions">Reductions (%) - comma separated</Label>
+              <Input
                 id="reductions"
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="E.g., 10, 20, 5.5"
-                disabled={isLoading}
+                placeholder="e.g. 8.5, 10"
+                {...traditionalForm.register('reductions')}
               />
-              <p className="text-sm text-gray-500">
-                Enter percentages separated by commas
-              </p>
               {traditionalForm.formState.errors.reductions && (
                 <p className="text-sm text-red-500">
                   {traditionalForm.formState.errors.reductions.message}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Enter percentage reductions separated by commas (e.g. &quot;5.5, 2.3&quot;)
+              </p>
             </div>
-
-            <div className="flex space-x-4">
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Calculating...' : 'Calculate'}
-              </Button>
-
+            
+            <div className="flex gap-4 justify-end">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
                 onClick={handleReset}
                 disabled={isLoading}
               >
                 Reset
               </Button>
+              <Button type="submit" disabled={isLoading}>
+                Calculate
+              </Button>
             </div>
           </form>
         </TabsContent>
-
-        <TabsContent value="detailed" className="mt-4">
-          <div className="space-y-6">
+        
+        <TabsContent value="detailed" className="space-y-4 mt-4">
+          <div className="space-y-4">
             <DetailedStepsInput
               steps={detailedSteps}
               onChange={setDetailedSteps}
               disabled={isLoading}
+              sourceCurrency={sourceCurrency}
+              targetCurrency={targetCurrency}
             />
-
-            <div className="flex flex-col space-y-2">
-              <div className="flex space-x-4">
-                <Button
-                  type="button"
-                  className="flex-1"
-                  onClick={handleDetailedSubmit}
-                  disabled={isLoading || detailedSteps.length === 0}
-                >
-                  {isLoading ? 'Calculating...' : 'Calculate'}
-                </Button>
-
+            
+            <div className="flex flex-col md:flex-row gap-2 md:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCreateExampleCalculation}
+                className="md:w-auto w-full"
+                disabled={isLoading}
+              >
+                Create Example
+              </Button>
+              
+              <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1"
                   onClick={handleReset}
                   disabled={isLoading}
                 >
                   Reset
                 </Button>
+                <Button 
+                  type="button"
+                  onClick={handleDetailedSubmit}
+                  disabled={isLoading || detailedSteps.length === 0}
+                >
+                  Calculate
+                </Button>
               </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={createExampleCalculation}
-                disabled={isLoading}
-                className="text-sm"
-              >
-                Load Example Calculation
-              </Button>
             </div>
           </div>
         </TabsContent>
@@ -388,5 +419,10 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
     </div>
   );
 };
+
+// Lazy loading for ExchangeRateDisplay to avoid potential circular dependencies
+const ExchangeRateDisplay = React.lazy(() => import('./ExchangeRateDisplay').then(module => ({
+  default: module.ExchangeRateDisplay
+})));
 
 export default DetailedInputForm; 

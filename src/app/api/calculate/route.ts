@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { CalculatorService } from '../../../application/calculator/calculatorService';
 import { ICalculationStep } from '../../../domain/calculator/calculatorService.interface';
+import { ICurrency } from '../../../domain/currency';
 
 // Create an instance of the calculator service
 const calculatorService = new CalculatorService();
@@ -11,6 +12,9 @@ interface CalculateRequestBody {
   exchangeRate?: number; // Optional for backward compatibility
   reductions?: string; // Optional for backward compatibility
   steps?: ICalculationStep[]; // New field for detailed calculation steps
+  sourceCurrency?: ICurrency; // Source currency for the calculation
+  targetCurrency?: ICurrency; // Target currency for the calculation
+  initialAmount?: number; // Initial amount in the source currency
 }
 
 // Validation constants
@@ -19,6 +23,19 @@ const MAX_INITIAL_VALUE = 1000000000; // 1 billion
 const MAX_EXCHANGE_RATE = 10000;
 const MAX_REDUCTIONS = 20;
 const MAX_STRING_LENGTH = 500;
+
+// Default currencies
+const DEFAULT_SOURCE_CURRENCY: ICurrency = {
+  code: 'USD',
+  symbol: '$',
+  name: 'US Dollar'
+};
+
+const DEFAULT_TARGET_CURRENCY: ICurrency = {
+  code: 'BRL',
+  symbol: 'R$',
+  name: 'Brazilian Real'
+};
 
 export async function POST(request: Request) {
   try {
@@ -33,6 +50,10 @@ export async function POST(request: Request) {
 
     // Parse the request body
     const body: CalculateRequestBody = await request.json();
+    
+    // Set default currencies if not provided
+    const sourceCurrency = body.sourceCurrency || DEFAULT_SOURCE_CURRENCY;
+    const targetCurrency = body.targetCurrency || DEFAULT_TARGET_CURRENCY;
     
     // Handle both old and new request formats
     try {
@@ -127,10 +148,14 @@ export async function POST(request: Request) {
         
         try {
           const result = await Promise.race([
-            calculatorService.processDetailedCalculation(body.steps),
+            calculatorService.processDetailedCalculation(body.steps, sourceCurrency, targetCurrency),
             timeoutPromise
           ]);
-          return NextResponse.json(result, { status: 200 });
+          return NextResponse.json({
+            ...(result as object),
+            sourceCurrency,
+            targetCurrency
+          }, { status: 200 });
         } catch (timeoutError) {
           if (timeoutError instanceof Error && timeoutError.message === 'Calculation timeout') {
             return NextResponse.json(
@@ -140,11 +165,25 @@ export async function POST(request: Request) {
           }
           throw timeoutError; // Re-throw if it's not a timeout error
         }
-      } else if (body.initialAmountUSD !== undefined && body.exchangeRate && body.reductions) {
+      } else if (
+        (body.initialAmountUSD !== undefined || body.initialAmount !== undefined) && 
+        body.exchangeRate && 
+        body.reductions
+      ) {
         // Old format with simple reductions
+        const initialAmount = body.initialAmount !== undefined 
+          ? body.initialAmount 
+          : body.initialAmountUSD;
+        
+        if (initialAmount === undefined) {
+          return NextResponse.json(
+            { error: "Missing initial amount" },
+            { status: 400 }
+          );
+        }
         
         // Validate input values
-        if (body.initialAmountUSD <= 0 || body.initialAmountUSD > MAX_INITIAL_VALUE) {
+        if (initialAmount <= 0 || initialAmount > MAX_INITIAL_VALUE) {
           return NextResponse.json(
             { error: `Invalid initial amount. Must be between 0 and ${MAX_INITIAL_VALUE}` },
             { status: 400 }
@@ -189,11 +228,17 @@ export async function POST(request: Request) {
         }
         
         const result = await calculatorService.processSimpleCalculation(
-          body.initialAmountUSD,
+          initialAmount,
           body.exchangeRate,
-          body.reductions
+          body.reductions,
+          sourceCurrency,
+          targetCurrency
         );
-        return NextResponse.json(result, { status: 200 });
+        return NextResponse.json({
+          ...result,
+          sourceCurrency,
+          targetCurrency
+        }, { status: 200 });
       } else {
         return NextResponse.json(
           { error: "Missing required fields" },

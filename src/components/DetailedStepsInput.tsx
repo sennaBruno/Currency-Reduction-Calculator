@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlusCircle, Trash2, InfoIcon, AlertCircle } from "lucide-react";
+import { ICurrency } from '../domain/currency';
 
 export interface InputStep {
   description: string;
@@ -26,6 +27,8 @@ interface DetailedStepsInputProps {
   steps: InputStep[];
   onChange: (steps: InputStep[]) => void;
   disabled?: boolean;
+  sourceCurrency?: ICurrency;
+  targetCurrency?: ICurrency;
 }
 
 const stepTypeOptions = [
@@ -40,7 +43,9 @@ const stepTypeOptions = [
 const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({ 
   steps, 
   onChange,
-  disabled = false 
+  disabled = false,
+  sourceCurrency,
+  targetCurrency
 }) => {
   // Maximum number of steps allowed
   const MAX_STEPS = 10;
@@ -60,9 +65,12 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
 
   // Helper function to get description placeholder based on step type
   const getDescriptionPlaceholder = (type: string): string => {
+    const sourceCode = sourceCurrency?.code || 'USD';
+    const targetCode = targetCurrency?.code || 'BRL';
+    
     switch (type) {
-      case 'initial': return 'Initial value';
-      case 'exchange_rate': return 'Converting USD to BRL';
+      case 'initial': return `Initial value in ${sourceCode}`;
+      case 'exchange_rate': return `Converting ${sourceCode} to ${targetCode}`;
       case 'percentage_reduction': return '- 1% (tax)';
       case 'fixed_reduction': return 'Fixed fee deduction';
       case 'addition': return 'Add bonus';
@@ -85,7 +93,7 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
       : 'exchange_rate';
       
     const newStep: InputStep = {
-      description: '',
+      description: getDescriptionPlaceholder(defaultType),
       type: defaultType,
       value: 0,
       explanation: ''
@@ -103,6 +111,13 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
   // Update step field
   const handleStepChange = (index: number, field: keyof InputStep, value: string | number) => {
     const newSteps = [...steps];
+    
+    // If the type is changing, provide a default description if the current one is empty
+    if (field === 'type' && (!newSteps[index].description || 
+        newSteps[index].description === getDescriptionPlaceholder(newSteps[index].type))) {
+      newSteps[index].description = getDescriptionPlaceholder(value as string);
+    }
+    
     newSteps[index] = { ...newSteps[index], [field]: value };
     onChange(newSteps);
   };
@@ -209,27 +224,32 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor={`step-${index}-description`}>Description</Label>
+                  <Label htmlFor={`step-${index}-description`}>
+                    Description
+                    {step.type === 'exchange_rate' && sourceCurrency && targetCurrency && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({sourceCurrency.code} → {targetCurrency.code})
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id={`step-${index}-description`}
                     placeholder={getDescriptionPlaceholder(step.type)}
                     value={step.description}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                      handleStepChange(index, 'description', e.target.value)
-                    }
+                    onChange={(e) => handleStepChange(index, 'description', e.target.value)}
                     disabled={disabled}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor={`step-${index}-explanation`}>Explanation (Optional)</Label>
+                  <Label htmlFor={`step-${index}-explanation`}>
+                    Explanation (Optional)
+                  </Label>
                   <Textarea
                     id={`step-${index}-explanation`}
-                    placeholder="Add additional context or explanation for this step"
+                    placeholder="Provide context for this calculation step"
                     value={step.explanation || ''}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => 
-                      handleStepChange(index, 'explanation', e.target.value)
-                    }
+                    onChange={(e) => handleStepChange(index, 'explanation', e.target.value)}
                     disabled={disabled}
                     rows={2}
                   />
