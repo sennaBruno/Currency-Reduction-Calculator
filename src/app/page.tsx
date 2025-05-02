@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DetailedInputForm from "@/components/DetailedInputForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import DetailedResultsDisplay from "@/components/DetailedResultsDisplay";
@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 // Legacy interfaces
 interface CalculationStep {
@@ -43,7 +44,7 @@ interface DetailedCalculationResult {
 
 interface FormInputs {
   initialAmountUSD: number;
-  exchangeRate: number;
+  exchangeRate: number | null;
   reductions: string;
 }
 
@@ -59,16 +60,67 @@ export default function Home() {
   const [formInputs, setFormInputs] = useState<FormInputs | null>(null);
   const [calculationMode, setCalculationMode] = useState<'simple' | 'detailed'>('simple');
 
-  // Legacy calculation handler
+  // State for exchange rate
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(true);
+  const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
+
+  // Fetch exchange rate on mount
+  useEffect(() => {
+    const fetchRate = async () => {
+      setExchangeRateLoading(true);
+      setExchangeRateError(null);
+      try {
+        const response = await fetch('/api/exchange-rate');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch rate');
+        }
+        const data = await response.json();
+        if (typeof data.rate !== 'number') {
+          throw new Error('Invalid rate format received');
+        }
+        setExchangeRate(data.rate);
+      } catch (err: any) {
+        console.error("Exchange rate fetch error:", err);
+        setExchangeRateError(err.message || 'Could not load exchange rate.');
+        setExchangeRate(null); // Ensure rate is null on error
+      } finally {
+        setExchangeRateLoading(false);
+      }
+    };
+
+    fetchRate();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Updated traditional calculation handler
   const handleTraditionalCalculate = async (data: { 
     initialAmountUSD: number; 
-    exchangeRate: number; 
     reductions: string;
   }) => {
+    // Check if rate is available before proceeding
+    if (exchangeRate === null) {
+      setError(
+        exchangeRateError || 
+        'Exchange rate is not available. Cannot perform calculation. Please try refreshing.'
+      );
+      setCalculationResult(null);
+      setDetailedResult(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(undefined);
-    setFormInputs(data);
     setCalculationMode('simple');
+
+    // Combine form data with fetched exchange rate
+    const apiPayload = {
+      ...data,
+      exchangeRate: exchangeRate, // Add the fetched rate
+    };
+
+    // Store inputs including the fetched rate for download
+    setFormInputs(apiPayload); 
 
     try {
       const response = await fetch('/api/calculate', {
@@ -76,7 +128,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(apiPayload), // Send payload with rate
       });
 
       const result = await response.json();
@@ -145,6 +197,8 @@ export default function Home() {
     setDetailedResult(null);
     setError(undefined);
     setFormInputs(null);
+    // Resetting exchange rate state might not be desired here, 
+    // as it should persist unless there's a manual refresh/refetch trigger.
   };
   
   const formatCurrencyForTxt = (value: number, currency: string): string => {
@@ -158,13 +212,13 @@ export default function Home() {
   
   // Format results as text for traditional calculation
   const formatTraditionalResultsAsText = (): string => {
-    if (!calculationResult || !formInputs) return '';
+    if (!calculationResult || !formInputs || formInputs.exchangeRate === null) return '';
     
     let text = "Cálculo de Redução de Moeda\n\n";
     
     text += "== Entradas ==\n";
     text += `Valor Inicial (USD): ${formatCurrencyForTxt(formInputs.initialAmountUSD, 'USD')}\n`;
-    text += `Taxa de Câmbio (BRL/USD): ${formInputs.exchangeRate}\n`;
+    text += `Taxa de Câmbio (BRL/USD): ${formInputs.exchangeRate.toFixed(4)}\n`; // Use fetched rate
     text += `Reduções (%): ${formInputs.reductions}\n\n`;
     
     text += "== Resultado Passo a Passo (BRL) ==\n";
@@ -237,6 +291,28 @@ export default function Home() {
               <CardTitle>Input Values</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Display Exchange Rate Info */}
+              <div className="mb-4 p-3 border rounded-md bg-muted/40">
+                <h4 className="text-sm font-medium mb-1">Exchange Rate (USD → BRL)</h4>
+                {exchangeRateLoading && (
+                  <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rate...</div>
+                )}
+                {exchangeRateError && (
+                   // Replace Alert with a simple div
+                   <div className="p-2 border border-red-500/50 bg-red-500/10 rounded-md">
+                     <p className="text-xs text-red-700 dark:text-red-400">
+                       <span className="font-semibold">Error:</span> {exchangeRateError}
+                     </p>
+                   </div>
+                )}
+                {exchangeRate !== null && !exchangeRateLoading && !exchangeRateError && (
+                  <p className="text-lg font-semibold">{exchangeRate.toFixed(4)}</p>
+                )}
+                 {!exchangeRateLoading && !exchangeRateError && (
+                  <p className="text-xs text-muted-foreground mt-1">Rate fetched automatically. Updates periodically.</p>
+                )}
+              </div>
+
               <DetailedInputForm 
                 onSubmitTraditional={handleTraditionalCalculate} 
                 onSubmitDetailed={handleDetailedCalculate}
