@@ -1,13 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ExchangeRate, ICurrency } from '../domain/currency';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, RefreshCcwIcon } from 'lucide-react';
+import { CalendarIcon, RefreshCcwIcon, InfoIcon } from 'lucide-react';
 
 interface ExchangeRateDisplayProps {
   sourceCurrency: ICurrency;
   targetCurrency: ICurrency;
   exchangeRate?: ExchangeRate;
   isLoading?: boolean;
+}
+
+interface ExchangeRateMetadata {
+  lastApiUpdateTime: string | null;
+  lastCacheRefreshTime: string;
+  nextCacheRefreshTime: string;
+  fromCache: boolean;
 }
 
 /**
@@ -19,8 +26,33 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
   exchangeRate,
   isLoading = false
 }) => {
-  const formatTimestamp = (date?: Date): string => {
-    if (!date) return '';
+  const [metadata, setMetadata] = useState<ExchangeRateMetadata | null>(null);
+  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+
+  useEffect(() => {
+    if (exchangeRate) {
+      fetchMetadata();
+    }
+  }, [exchangeRate]);
+
+  const fetchMetadata = async () => {
+    try {
+      setIsMetadataLoading(true);
+      const response = await fetch('/api/exchange-rate-metadata');
+      if (response.ok) {
+        const data = await response.json();
+        setMetadata(data);
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate metadata:', error);
+    } finally {
+      setIsMetadataLoading(false);
+    }
+  };
+
+  const formatTimestamp = (dateString?: string | Date): string => {
+    if (!dateString) return '';
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
       timeStyle: 'short'
@@ -66,12 +98,37 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
           1 {sourceCurrency.symbol} = {exchangeRate.rate.toFixed(4)} {targetCurrency.symbol}
         </div>
         
-        {exchangeRate.timestamp && (
-          <div className="exchange-rate-timestamp flex items-center text-xs text-muted-foreground mt-2">
-            <CalendarIcon className="h-3 w-3 mr-1" />
-            Last updated: {formatTimestamp(exchangeRate.timestamp)}
-          </div>
-        )}
+        <div className="exchange-rate-timestamp flex items-center text-xs text-muted-foreground mt-2">
+          <CalendarIcon className="h-3 w-3 mr-1" />
+          <span>
+            {isMetadataLoading ? (
+              <span className="flex items-center">
+                <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
+                Checking update time...
+              </span>
+            ) : metadata?.lastApiUpdateTime ? (
+              <>
+                Last updated by API: {formatTimestamp(metadata.lastApiUpdateTime)}
+                <span className="inline-flex items-center ml-1 group relative">
+                  <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                  <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
+                    This timestamp comes directly from the exchange rate API and shows when they last updated their rates.
+                  </span>
+                </span>
+              </>
+            ) : (
+              <>
+                Last updated: {formatTimestamp(exchangeRate.timestamp)}
+                <span className="inline-flex items-center ml-1 group relative">
+                  <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                  <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
+                    Using fallback timestamp from rate data.
+                  </span>
+                </span>
+              </>
+            )}
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
-import { IExchangeRateRepository } from '../../domain/exchange-rate/exchangeRateRepository.interface';
+import { IExchangeRateRepository, ExchangeRateMetadata } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 import { IExchangeRateService } from './exchangeRate.interface';
 
 /**
@@ -69,6 +69,24 @@ export class ExchangeRateService implements IExchangeRateService {
     });
     
     this.lastUpdated = new Date();
+  }
+  
+  /**
+   * Gets metadata about the exchange rate data freshness
+   * @returns Exchange rate metadata including API update timestamps
+   */
+  async getExchangeRateMetadata(): Promise<ExchangeRateMetadata> {
+    // Get the repository metadata
+    const repoMetadata = this.exchangeRateRepository.getExchangeRateMetadata();
+    
+    // Enhance with service-level cache information
+    return {
+      ...repoMetadata,
+      // Add service-level cache information if it's different from repository
+      lastCacheRefreshTime: this.lastUpdated.getTime() > repoMetadata.lastCacheRefreshTime.getTime()
+        ? this.lastUpdated
+        : repoMetadata.lastCacheRefreshTime
+    };
   }
 
   /**

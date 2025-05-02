@@ -9,6 +9,32 @@ export interface CacheConfig {
 }
 
 /**
+ * Metadata about the exchange rate data and cache status
+ */
+export interface ExchangeRateMetadata {
+  /**
+   * When our cache was last refreshed
+   */
+  lastCacheRefreshTime: Date;
+  
+  /**
+   * When the API provider last updated their data
+   * This comes directly from the API response
+   */
+  lastApiUpdateTime: Date | null;
+  
+  /**
+   * When the cache will be refreshed next
+   */
+  nextCacheRefreshTime: Date;
+  
+  /**
+   * Whether the current data is from cache or freshly fetched
+   */
+  fromCache: boolean;
+}
+
+/**
  * Interface defining the operations for exchange rate data retrieval
  */
 export interface IExchangeRateRepository {
@@ -40,4 +66,10 @@ export interface IExchangeRateRepository {
    * @returns The cache configuration object
    */
   getCacheConfig(): CacheConfig;
+  
+  /**
+   * Gets metadata about the exchange rate data and cache status
+   * @returns Exchange rate metadata object
+   */
+  getExchangeRateMetadata(): ExchangeRateMetadata;
 } 

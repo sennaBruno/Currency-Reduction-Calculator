@@ -29,6 +29,32 @@ export interface ExchangeRateRepositoryConfig {
 }
 
 /**
+ * Metadata about the cache status and data freshness
+ */
+export interface ExchangeRateMetadata {
+  /**
+   * When our cache was last refreshed
+   */
+  lastCacheRefreshTime: Date;
+  
+  /**
+   * When the API provider last updated their data
+   * This comes directly from the API response
+   */
+  lastApiUpdateTime: Date | null;
+  
+  /**
+   * When the cache will be refreshed next
+   */
+  nextCacheRefreshTime: Date;
+  
+  /**
+   * Whether the current data is from cache or freshly fetched
+   */
+  fromCache: boolean;
+}
+
+/**
  * Implementation of the exchange rate repository using the API client
  * and Next.js caching
  */
@@ -36,6 +62,9 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
   private client: IExchangeRateApiClient;
   private cacheDuration: number;
   private cacheTag: string;
+  private lastCacheRefreshTime: Date = new Date();
+  private lastApiUpdateTime: Date | null = null;
+  private fromCache: boolean = false;
 
   constructor(
     client?: IExchangeRateApiClient,
@@ -71,8 +100,11 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     const getCachedUsdBrlRate = cache(
       async () => {
         try {
+          this.fromCache = false;
           console.log('Cache miss - fetching fresh exchange rate data');
-          return await this.client.getUsdToBrlRate();
+          const result = await this.client.getUsdToBrlRate();
+          this.lastCacheRefreshTime = new Date();
+          return result;
         } catch (error) {
           console.error('Error in cached exchange rate fetch:', error);
           throw error; // Re-throw to be handled by the caller
@@ -86,6 +118,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     );
 
     // Call and return the cached function
+    this.fromCache = true;
     return getCachedUsdBrlRate();
   }
   
@@ -103,8 +136,14 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     const getCachedExchangeRate = cache(
       async () => {
         try {
+          this.fromCache = false;
           console.log(`Cache miss - fetching fresh exchange rate data for ${fromCurrency.code} to ${toCurrency.code}`);
-          return await this.client.getExchangeRate(fromCurrency, toCurrency);
+          const result = await this.client.getExchangeRate(fromCurrency, toCurrency);
+          this.lastCacheRefreshTime = new Date();
+          if (result.timestamp) {
+            this.lastApiUpdateTime = new Date(result.timestamp);
+          }
+          return result;
         } catch (error) {
           console.error(`Error in cached exchange rate fetch for ${fromCurrency.code} to ${toCurrency.code}:`, error);
           throw error; // Re-throw to be handled by the caller
@@ -118,7 +157,9 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     );
 
     // Call and return the cached function
-    return getCachedExchangeRate();
+    this.fromCache = true;
+    const result = await getCachedExchangeRate();
+    return result;
   }
   
   /**
@@ -130,8 +171,15 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     const getCachedAllRates = cache(
       async () => {
         try {
+          this.fromCache = false;
           console.log('Cache miss - fetching all exchange rates');
-          return await this.client.getAllRates();
+          const result = await this.client.getAllRates();
+          this.lastCacheRefreshTime = new Date();
+          // Get the timestamp from the first rate (they should all have the same API update time)
+          if (result.length > 0 && result[0].timestamp) {
+            this.lastApiUpdateTime = new Date(result[0].timestamp);
+          }
+          return result;
         } catch (error) {
           console.error('Error in cached all rates fetch:', error);
           throw error; // Re-throw to be handled by the caller
@@ -145,6 +193,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     );
 
     // Call and return the cached function
+    this.fromCache = true;
     return getCachedAllRates();
   }
   
@@ -155,6 +204,19 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
   getCacheConfig(): CacheConfig {
     return {
       revalidateSeconds: this.cacheDuration
+    };
+  }
+  
+  /**
+   * Gets metadata about the exchange rate data and cache status
+   * @returns Exchange rate metadata object
+   */
+  getExchangeRateMetadata(): ExchangeRateMetadata {
+    return {
+      lastCacheRefreshTime: this.lastCacheRefreshTime,
+      lastApiUpdateTime: this.lastApiUpdateTime,
+      nextCacheRefreshTime: new Date(this.lastCacheRefreshTime.getTime() + (this.cacheDuration * 1000)),
+      fromCache: this.fromCache
     };
   }
 } 

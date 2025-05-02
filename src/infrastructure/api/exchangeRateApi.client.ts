@@ -1,6 +1,6 @@
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
-import { IExchangeRateRepository, CacheConfig } from '../../domain/exchange-rate/exchangeRateRepository.interface';
+import { IExchangeRateRepository, CacheConfig, ExchangeRateMetadata } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 import { CurrencyRegistry } from '../../application/currency/currencyRegistry.service';
 import { ErrorFactory, logError } from '../../utils/errorHandling';
 import { IExchangeRateApiClient } from './exchangeRateApiClient.interface';
@@ -39,6 +39,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
   private readonly API_BASE_URL: string;
   private readonly currencyRegistry: CurrencyRegistry;
   private readonly throttledClient: ThrottledApiClient;
+  private lastCacheRefreshTime: Date = new Date();
+  private lastApiUpdateTime: Date | null = null;
   
   constructor() {
     // Use environment variable or fallback to default key (for development only)
@@ -155,13 +157,17 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
             );
           }
           
+          this.lastCacheRefreshTime = new Date();
+          const apiUpdateTime = new Date(data.time_last_update_unix * 1000);
+          this.lastApiUpdateTime = apiUpdateTime;
+          
           return {
             currencyPair: {
               source: fromCurrency,
               target: toCurrency
             },
             rate: data.conversion_rate,
-            timestamp: new Date(data.time_last_update_unix * 1000)
+            timestamp: apiUpdateTime
           };
         });
       } catch (error) {
@@ -223,7 +229,9 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
         }
         
         const exchangeRates: ExchangeRate[] = [];
-        const timestamp = new Date(data.time_last_update_unix * 1000);
+        this.lastCacheRefreshTime = new Date();
+        const apiUpdateTime = new Date(data.time_last_update_unix * 1000);
+        this.lastApiUpdateTime = apiUpdateTime;
         
         // Get all currencies from the registry
         const availableCurrencies = this.currencyRegistry.getAllCurrencies();
@@ -253,7 +261,7 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
               target: targetCurrency
             },
             rate: data.conversion_rates[targetCode],
-            timestamp
+            timestamp: apiUpdateTime
           });
         }
         
@@ -300,13 +308,26 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
   }
 
   /**
-   * Gets the cache configuration
+   * Gets the current cache configuration
    * @returns Cache configuration object
    */
   getCacheConfig(): CacheConfig {
-    // Default cache duration of 3600 seconds (1 hour)
+    // Return a standard cache configuration
     return {
-      revalidateSeconds: 3600
+      revalidateSeconds: 3600 // 1 hour default
+    };
+  }
+  
+  /**
+   * Gets metadata about the exchange rate data and cache status
+   * @returns Exchange rate metadata object
+   */
+  getExchangeRateMetadata(): ExchangeRateMetadata {
+    return {
+      lastCacheRefreshTime: this.lastCacheRefreshTime,
+      lastApiUpdateTime: this.lastApiUpdateTime,
+      nextCacheRefreshTime: new Date(this.lastCacheRefreshTime.getTime() + (3600 * 1000)), // 1 hour from now
+      fromCache: false // Always false for direct API client
     };
   }
 } 

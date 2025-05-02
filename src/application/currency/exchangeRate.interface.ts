@@ -1,5 +1,6 @@
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
+import { ExchangeRateMetadata } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 
 /**
  * Interface for a service managing exchange rates
@@ -24,4 +25,10 @@ export interface IExchangeRateService {
    * @returns Promise resolving when rates are updated
    */
   updateRates(): Promise<void>;
+  
+  /**
+   * Gets metadata about the exchange rate data freshness
+   * @returns Exchange rate metadata including API update timestamps
+   */
+  getExchangeRateMetadata(): Promise<ExchangeRateMetadata>;
 } 
