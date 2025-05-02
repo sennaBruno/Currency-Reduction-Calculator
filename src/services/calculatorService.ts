@@ -1,14 +1,5 @@
 import { ApiService } from './api';
-
-/**
- * Step in a detailed calculation
- */
-export interface InputStep {
-  description: string;
-  type: 'initial' | 'exchange_rate' | 'percentage_reduction' | 'fixed_reduction' | 'addition' | 'custom';
-  value: number;
-  explanation?: string;
-}
+import { InputStep } from '../types/calculator';
 
 /**
  * Result of a calculation step

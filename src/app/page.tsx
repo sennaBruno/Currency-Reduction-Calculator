@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import DetailedInputForm from "@/components/DetailedInputForm";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import DetailedResultsDisplay from "@/components/DetailedResultsDisplay";
-import { InputStep } from "@/components/DetailedStepsInput";
+import { InputStep } from "@/types/calculator";
 import {
   Card,
   CardContent,
@@ -20,7 +20,6 @@ import {
 import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
 import { ICurrency } from '@/domain/currency/currency.interface';
 import { formatCurrencyForText } from '../domain/currency/currencyConversion.utils';
-import { ExchangeRateDisplay } from '@/components/ExchangeRateDisplay';
 
 // API error response interface
 interface ApiErrorResponse {
@@ -52,6 +51,8 @@ export default function Home() {
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(true);
   const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
+  // Adicione estado para armazenar a data da última atualização
+  const [exchangeRateLastUpdated, setExchangeRateLastUpdated] = useState<Date | null>(null);
 
   // Add state for available currencies
   const [availableCurrencies, setAvailableCurrencies] = useState<ICurrency[]>([]);
@@ -86,21 +87,22 @@ export default function Home() {
       setExchangeRateLoading(true);
       setExchangeRateError(null);
       try {
-        const rate = await ExchangeRateService.getUsdToBrlRate();
-        setExchangeRate(rate);
+        const rateData = await ExchangeRateService.getUsdToBrlRateWithMetadata();
+        setExchangeRate(rateData.rate);
+        setExchangeRateLastUpdated(rateData.timestamp);
       } catch (error: Error | unknown) {
         console.error("Exchange rate fetch error:", error);
         setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
         setExchangeRate(null); // Ensure rate is null on error
+        setExchangeRateLastUpdated(null);
       } finally {
         setExchangeRateLoading(false);
       }
     };
 
     fetchRate();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []); 
   
-  // Function to fetch exchange rate for a specific currency pair
   const fetchExchangeRateForCurrencyPair = async (source: ICurrency, target: ICurrency) => {
     setExchangeRateLoading(true);
     setExchangeRateError(null);
@@ -108,18 +110,19 @@ export default function Home() {
     setTargetCurrency(target);
     
     try {
-      const rate = await ExchangeRateService.getExchangeRateForPair(source, target);
-      setExchangeRate(rate);
+      const rateData = await ExchangeRateService.getExchangeRateForPairWithMetadata(source, target);
+      setExchangeRate(rateData.rate);
+      setExchangeRateLastUpdated(rateData.timestamp);
     } catch (error: Error | unknown) {
       console.error(`Exchange rate fetch error for ${source.code}/${target.code}:`, error);
       setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
       setExchangeRate(null);
+      setExchangeRateLastUpdated(null);
     } finally {
       setExchangeRateLoading(false);
     }
   };
 
-  // Updated traditional calculation handler
   const handleTraditionalCalculate = async (data: { 
     initialAmount: number;
     exchangeRate: number;
@@ -127,25 +130,22 @@ export default function Home() {
     sourceCurrency: ICurrency;
     targetCurrency: ICurrency;
   }) => {
-    // Use the rate from the form
     const rateToUse = data.exchangeRate;
     
     setIsLoading(true);
     setError(undefined);
     setCalculationMode('simple');
 
-    // Store inputs for download
     setFormInputs({ 
       initialAmountUSD: data.initialAmount, 
       reductions: data.reductions 
     });
 
     try {
-      // Pass arguments to the service method
       const result = await CalculatorService.processSimpleCalculation(
-        data.initialAmount,   // Initial amount
-        rateToUse,           // Exchange rate
-        data.reductions      // Reductions
+        data.initialAmount,   
+        rateToUse,           
+        data.reductions      
       );
       
       setCalculationResult(result);
@@ -154,13 +154,11 @@ export default function Home() {
       scrollToTop();
     } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
-      // Extract error message from response if available
       let errorMessage = 'Failed to perform calculation';
       
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'object' && error !== null) {
-        // Try to extract message from API response error
         const errorObj = error as ApiErrorResponse;
         if (errorObj.response?.data?.error) {
           errorMessage = errorObj.response.data.error;
@@ -176,7 +174,6 @@ export default function Home() {
     }
   };
 
-  // Detailed calculation handler
   const handleDetailedCalculate = async (data: { 
     steps: InputStep[];
     sourceCurrency: ICurrency;
@@ -195,13 +192,11 @@ export default function Home() {
       scrollToTop();
     } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
-      // Extract error message from response if available
       let errorMessage = 'Failed to perform calculation';
       
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'object' && error !== null) {
-        // Try to extract message from API response error
         const errorObj = error as ApiErrorResponse;
         if (errorObj.response?.data?.error) {
           errorMessage = errorObj.response.data.error;
@@ -222,11 +217,8 @@ export default function Home() {
     setDetailedResult(null);
     setError(undefined);
     setFormInputs(null);
-    // Resetting exchange rate state might not be desired here, 
-    // as it should persist unless there's a manual refresh/refetch trigger.
   };
   
-  // Format results as text for traditional calculation
   const formatTraditionalResultsAsText = (): string => {
     if (!calculationResult || !formInputs || exchangeRate === null) return '';
     
@@ -250,7 +242,6 @@ export default function Home() {
     return text;
   };
 
-  // Format results as text for detailed calculation
   const formatDetailedResultsAsText = (): string => {
     if (!detailedResult) return '';
     
@@ -307,44 +298,15 @@ export default function Home() {
               <CardTitle>Input Values</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Display Exchange Rate Info */}
-              {sourceCurrency && targetCurrency && (
-                <div className="mb-4">
-                  {exchangeRateLoading ? (
-                    <ExchangeRateDisplay
-                      sourceCurrency={sourceCurrency}
-                      targetCurrency={targetCurrency}
-                      isLoading={true}
-                    />
-                  ) : exchangeRateError ? (
-                    <div className="p-4 border border-red-500/50 bg-red-500/10 rounded-md">
-                      <p className="text-sm text-red-700 dark:text-red-400">
-                        <span className="font-semibold">Error:</span> {exchangeRateError}
-                      </p>
-                    </div>
-                  ) : exchangeRate !== null && (
-                    <ExchangeRateDisplay
-                      sourceCurrency={sourceCurrency}
-                      targetCurrency={targetCurrency}
-                      exchangeRate={{
-                        rate: exchangeRate,
-                        timestamp: new Date(),
-                        currencyPair: {
-                          source: sourceCurrency,
-                          target: targetCurrency
-                        }
-                      }}
-                    />
-                  )}
-                </div>
-              )}
-
               <DetailedInputForm 
                 onSubmitTraditional={handleTraditionalCalculate}
                 onSubmitDetailed={handleDetailedCalculate}
                 onReset={handleReset}
                 isLoading={isLoading}
                 exchangeRate={exchangeRate}
+                exchangeRateLastUpdated={exchangeRateLastUpdated}
+                exchangeRateIsLoading={exchangeRateLoading}
+                exchangeRateError={exchangeRateError}
                 availableCurrencies={availableCurrencies}
                 onCurrencyChange={fetchExchangeRateForCurrencyPair}
               />
