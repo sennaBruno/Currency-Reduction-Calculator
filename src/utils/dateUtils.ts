@@ -50,13 +50,17 @@ export const addSecondsToDate = (date: Date, seconds: number): Date => {
 export const formatDate = (date: Date | string | number, formatString: string = 'PPpp'): string => {
   if (!date) return '';
   
-  // Convert string to Date if needed
-  const dateObj = typeof date === 'string' ? parseISO(date) : typeof date === 'number' ? new Date(date) : date;
-  
-  // Validate the date object
-  if (!isValid(dateObj)) return 'Invalid date';
-  
-  return format(dateObj, formatString);
+  try {
+    // Convert string to Date if needed
+    const dateObj = typeof date === 'string' ? parseISO(date) : typeof date === 'number' ? new Date(date) : date;
+    
+    // Validate the date object
+    if (!isValid(dateObj)) return 'Invalid date';
+    
+    return format(dateObj, formatString);
+  } catch (error) {
+    return 'Invalid date';
+  }
 };
 
 /**
@@ -65,7 +69,12 @@ export const formatDate = (date: Date | string | number, formatString: string = 
  * @returns ISO 8601 formatted date string
  */
 export const formatDateISO = (date: Date): string => {
-  return formatISO(date);
+  try {
+    if (!date || !isValid(date)) return '';
+    return formatISO(date);
+  } catch (error) {
+    return '';
+  }
 };
 
 /**
@@ -75,8 +84,13 @@ export const formatDateISO = (date: Date): string => {
  */
 export const parseISODate = (isoString: string): Date | null => {
   if (!isoString) return null;
-  const date = parseISO(isoString);
-  return isValid(date) ? date : null;
+  
+  try {
+    const date = parseISO(isoString);
+    return isValid(date) ? date : null;
+  } catch (error) {
+    return null;
+  }
 };
 
 /**
@@ -86,8 +100,13 @@ export const parseISODate = (isoString: string): Date | null => {
  */
 export const parseUTCString = (utcString: string | null): Date | null => {
   if (!utcString) return null;
-  const date = new Date(utcString);
-  return isValid(date) ? date : null;
+  
+  try {
+    const date = new Date(utcString);
+    return isValid(date) ? date : null;
+  } catch (error) {
+    return null;
+  }
 };
 
 /**
@@ -97,8 +116,12 @@ export const parseUTCString = (utcString: string | null): Date | null => {
  * @returns Formatted relative time string
  */
 export const formatRelativeTime = (date: Date | string, baseDate: Date = new Date()): string => {
-  const dateObj = typeof date === 'string' ? parseISO(date) : date;
-  if (!isValid(dateObj)) return 'Invalid date';
-  
-  return formatDistance(dateObj, baseDate, { addSuffix: true });
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (!isValid(dateObj)) return 'Invalid date';
+    
+    return formatDistance(dateObj, baseDate, { addSuffix: true });
+  } catch (error) {
+    return 'Invalid date';
+  }
 }; 
