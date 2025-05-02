@@ -47,7 +47,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   initialBRLNoReduction,
   error,
   onDownload,
-  sourceCurrency = { code: 'USD', symbol: '$', name: 'US Dollar' },
   targetCurrency = { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
 }) => {
   // If there's an error, display the error message

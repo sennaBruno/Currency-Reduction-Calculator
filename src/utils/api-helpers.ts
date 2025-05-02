@@ -62,7 +62,7 @@ function defaultShouldRetry(error: unknown): boolean {
  * Class for implementing API request throttling to limit rate
  */
 export class ThrottledApiClient {
-  private requestQueue: Array<() => Promise<any>> = [];
+  private requestQueue: Array<() => Promise<unknown>> = [];
   private processing = false;
   private requestsPerSecond: number;
   

@@ -4,7 +4,7 @@ import { MockExchangeRateApiClient, testCurrencies } from './exchangeRateApiMock
 // Mock the Next.js cache functionality since we can't use it in tests
 jest.mock('next/cache', () => ({
   unstable_cache: jest.fn().mockImplementation((fn) => {
-    return (...args: any[]) => fn(...args);
+    return (...args: unknown[]) => fn(...args);
   })
 }));
 
