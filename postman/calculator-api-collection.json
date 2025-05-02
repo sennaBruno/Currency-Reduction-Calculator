@@ -1,0 +1,156 @@
+{
+	"info": {
+		"_postman_id": "c8a90a50-a2cb-4b42-85a4-f3a7eea72d05",
+		"name": "Currency Calculator API",
+		"description": "API collection for testing the Currency Calculator application",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Exchange Rate",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://currency-calculator-alpha.vercel.app/api/exchange-rate",
+					"protocol": "https",
+					"host": [
+						"currency-calculator-alpha",
+						"vercel",
+						"app"
+					],
+					"path": [
+						"api",
+						"exchange-rate"
+					]
+				},
+				"description": "Get the current USD to BRL exchange rate"
+			},
+			"response": []
+		},
+		{
+			"name": "Simple Calculation",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"initialAmountUSD\": 1000,\n  \"exchangeRate\": 5.2,\n  \"reductions\": \"10,5,2\"\n}"
+				},
+				"url": {
+					"raw": "https://currency-calculator-alpha.vercel.app/api/calculate",
+					"protocol": "https",
+					"host": [
+						"currency-calculator-alpha",
+						"vercel",
+						"app"
+					],
+					"path": [
+						"api",
+						"calculate"
+					]
+				},
+				"description": "Process a simple calculation with initial USD amount, exchange rate, and percentage reductions"
+			},
+			"response": []
+		},
+		{
+			"name": "Detailed Calculation",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"steps\": [\n    {\n      \"description\": \"Initial amount (USD)\",\n      \"type\": \"initial\",\n      \"value\": 1000,\n      \"explanation\": \"Starting with $1000 USD\"\n    },\n    {\n      \"description\": \"Exchange rate USD to BRL\",\n      \"type\": \"exchange_rate\",\n      \"value\": 5.2,\n      \"explanation\": \"Converting from USD to BRL\"\n    },\n    {\n      \"description\": \"First reduction\",\n      \"type\": \"percentage_reduction\",\n      \"value\": 10,\n      \"explanation\": \"10% reduction fee\"\n    },\n    {\n      \"description\": \"Fixed amount for tax\",\n      \"type\": \"fixed_reduction\",\n      \"value\": 150,\n      \"explanation\": \"Fixed tax of 150 BRL\"\n    },\n    {\n      \"description\": \"Bonus\",\n      \"type\": \"addition\",\n      \"value\": 75,\n      \"explanation\": \"Promotional bonus of 75 BRL\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "https://currency-calculator-alpha.vercel.app/api/calculate",
+					"protocol": "https",
+					"host": [
+						"currency-calculator-alpha",
+						"vercel",
+						"app"
+					],
+					"path": [
+						"api",
+						"calculate"
+					]
+				},
+				"description": "Process a detailed calculation with multiple operation steps"
+			},
+			"response": []
+		},
+		{
+			"name": "Detailed Calculation - Two Exchange Rates",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"steps\": [\n    {\n      \"description\": \"First exchange rate\",\n      \"type\": \"exchange_rate\",\n      \"value\": 220,\n      \"explanation\": \"\"\n    },\n    {\n      \"description\": \"Second exchange rate\",\n      \"type\": \"exchange_rate\",\n      \"value\": 199.998,\n      \"explanation\": \"\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "https://currency-calculator-alpha.vercel.app/api/calculate",
+					"protocol": "https",
+					"host": [
+						"currency-calculator-alpha",
+						"vercel",
+						"app"
+					],
+					"path": [
+						"api",
+						"calculate"
+					]
+				},
+				"description": "The specific example that was giving an error - two consecutive exchange rate steps"
+			},
+			"response": []
+		},
+		{
+			"name": "Detailed Calculation - With Initial Amount",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"steps\": [\n    {\n      \"description\": \"Initial amount (USD)\",\n      \"type\": \"initial\",\n      \"value\": 1000,\n      \"explanation\": \"Starting with $1000 USD\"\n    },\n    {\n      \"description\": \"Exchange rate\",\n      \"type\": \"exchange_rate\",\n      \"value\": 220,\n      \"explanation\": \"\"\n    },\n    {\n      \"description\": \"Second exchange rate\",\n      \"type\": \"exchange_rate\",\n      \"value\": 199.998,\n      \"explanation\": \"\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "https://currency-calculator-alpha.vercel.app/api/calculate",
+					"protocol": "https",
+					"host": [
+						"currency-calculator-alpha",
+						"vercel",
+						"app"
+					],
+					"path": [
+						"api",
+						"calculate"
+					]
+				},
+				"description": "Modified version of the request that caused an error - now with an initial amount"
+			},
+			"response": []
+		}
+	]
+} 

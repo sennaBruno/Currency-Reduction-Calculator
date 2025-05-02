@@ -22,6 +22,31 @@ export async function POST(request: Request) {
     try {
       if (body.steps && body.steps.length > 0) {
         // New format with detailed steps
+        
+        // Validate that there is at least one 'initial' type step
+        const hasInitialStep = body.steps.some(step => step.type === 'initial');
+        if (!hasInitialStep) {
+          return NextResponse.json(
+            { error: "An Initial Value step is required for detailed calculations" },
+            { status: 400 }
+          );
+        }
+        
+        // Check for logical calculation errors before processing
+        // For example, an exchange_rate step must come after an initial step
+        const initialIndex = body.steps.findIndex(step => step.type === 'initial');
+        const hasExchangeRateBeforeInitial = body.steps.some((step, index) => 
+          step.type === 'exchange_rate' && index < initialIndex
+        );
+        
+        if (hasExchangeRateBeforeInitial) {
+          return NextResponse.json(
+            { error: "Exchange rate steps must come after an initial value step" },
+            { status: 400 }
+          );
+        }
+        
+        // Now process the calculation
         const result = await calculatorService.processDetailedCalculation(body.steps);
         return NextResponse.json(result, { status: 200 });
       } else if (body.initialAmountUSD && body.exchangeRate && body.reductions) {

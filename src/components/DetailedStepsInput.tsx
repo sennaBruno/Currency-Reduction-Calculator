@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, InfoIcon, AlertCircle } from "lucide-react";
 
 export interface InputStep {
   description: string;
@@ -29,7 +29,7 @@ interface DetailedStepsInputProps {
 }
 
 const stepTypeOptions = [
-  { value: 'initial', label: 'Initial Value' },
+  { value: 'initial', label: 'Initial Value (Required)' },
   { value: 'exchange_rate', label: 'Exchange Rate' },
   { value: 'percentage_reduction', label: 'Percentage Reduction' },
   { value: 'fixed_reduction', label: 'Fixed Reduction' },
@@ -70,9 +70,14 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
 
   // Add a new step
   const handleAddStep = () => {
+    // If no steps exist yet, default to initial step
+    const defaultType = steps.length === 0 || !steps.some(step => step.type === 'initial') 
+      ? 'initial' 
+      : 'exchange_rate';
+      
     const newStep: InputStep = {
       description: '',
-      type: 'initial', // Default type
+      type: defaultType,
       value: 0,
       explanation: ''
     };
@@ -93,33 +98,49 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
     onChange(newSteps);
   };
 
+  // Check if we have an initial step
+  const hasInitialStep = steps.some(step => step.type === 'initial');
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-2">
-        <Label>Calculation Steps</Label>
-        <Button 
-          type="button" 
-          variant="outline" 
-          size="sm" 
-          onClick={handleAddStep}
-          disabled={disabled}
-          className="flex items-center gap-1"
-        >
-          <PlusCircle size={16} />
-          Add Step
-        </Button>
+      <div className="flex flex-col space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Calculation Steps</Label>
+          <Button 
+            type="button" 
+            variant="outline" 
+            size="sm" 
+            onClick={handleAddStep}
+            disabled={disabled}
+            className="flex items-center gap-1"
+          >
+            <PlusCircle size={16} />
+            Add Step
+          </Button>
+        </div>
+        
+        {!hasInitialStep && steps.length > 0 && (
+          <div className="flex items-center p-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md">
+            <AlertCircle size={14} className="mr-1 flex-shrink-0" />
+            <span>An <strong>Initial Value</strong> step is required. Please add one to your calculation.</span>
+          </div>
+        )}
       </div>
 
       {steps.length === 0 ? (
         <Card className="bg-muted/20">
           <CardContent className="py-6 text-center text-muted-foreground">
             <p>No steps added yet. Click &quot;Add Step&quot; to start building your calculation.</p>
+            <p className="text-xs mt-2">
+              <InfoIcon size={12} className="inline mr-1" />
+              You must include an <strong>Initial Value</strong> step in your calculation.
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           {steps.map((step, index) => (
-            <Card key={index} className="p-4 relative">
+            <Card key={index} className={`p-4 relative ${step.type === 'initial' ? 'border-green-200 bg-green-50/30' : ''}`}>
               <div className="absolute right-2 top-2">
                 <Button
                   type="button"

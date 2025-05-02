@@ -99,7 +99,15 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
   const handleDetailedSubmit = () => {
     // Basic validation
     if (detailedSteps.length === 0) {
-      return; // Show error message
+      alert('Please add at least one calculation step');
+      return;
+    }
+
+    // Check if there's an initial value step
+    const hasInitialStep = detailedSteps.some(step => step.type === 'initial');
+    if (!hasInitialStep) {
+      alert('An Initial Value step is required for calculation');
+      return;
     }
 
     // Check if all required fields are filled
