@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ExchangeRateService } from '../../../application/currency/exchangeRate.service';
 import { ExchangeRateRepository } from '../../../infrastructure/exchange-rate/exchangeRateRepository';
-import { formatDateISO } from '../../../utils/dateUtils';
+import { formatDateISO, nowUTC } from '../../../utils/dateUtils';
 
 // Create instances of the required services
 // Use repository pattern with configurable provider and caching
@@ -22,23 +22,27 @@ const exchangeRateService = new ExchangeRateService(exchangeRateRepository);
 export async function GET() {
   try {
     // First, ensure we have fresh data by fetching a rate which will update the metadata
-    // We need to use the repository directly since the exchangeRate.service doesn't have fetchUsdBrlRate
-    await exchangeRateRepository.getUsdToBrlRate();
-    console.log('Fetched USD/BRL rate before getting metadata');
+    // This ensures the metadata will be updated with the latest API information
+    const rate = await exchangeRateRepository.getUsdToBrlRate();
+    console.log('Fetched USD/BRL rate before getting metadata:', rate);
     
     // Now get the metadata which should include the timestamps from the API
     const metadata = await exchangeRateService.getExchangeRateMetadata();
     
     // Log the metadata for debugging
     console.log('Exchange rate metadata:', {
-      lastApiUpdateTime: metadata.lastApiUpdateTime,
+      lastApiUpdateTime: metadata.lastApiUpdateTime ? metadata.lastApiUpdateTime.toISOString() : null,
+      lastCacheRefreshTime: metadata.lastCacheRefreshTime.toISOString(),
       time_last_update_utc: metadata.time_last_update_utc,
       time_next_update_utc: metadata.time_next_update_utc
     });
     
+    // Set default current time for any missing timestamps
+    const now = nowUTC();
+    
     // Format dates using date-fns utility and include UTC strings for response
     const response = {
-      lastApiUpdateTime: metadata.lastApiUpdateTime ? formatDateISO(metadata.lastApiUpdateTime) : null,
+      lastApiUpdateTime: metadata.lastApiUpdateTime ? formatDateISO(metadata.lastApiUpdateTime) : formatDateISO(now),
       lastCacheRefreshTime: formatDateISO(metadata.lastCacheRefreshTime),
       nextCacheRefreshTime: formatDateISO(metadata.nextCacheRefreshTime),
       fromCache: metadata.fromCache,

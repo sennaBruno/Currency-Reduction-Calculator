@@ -1,6 +1,7 @@
 import { ICurrency } from '../../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../../domain/currency/exchangeRate.type';
 import { IExchangeRateApiClient } from '../../api/exchangeRateApiClient.interface';
+import { nowUTC } from '../../../utils/dateUtils';
 
 // Sample currencies for testing
 export const testCurrencies: Record<string, ICurrency> = {
@@ -101,7 +102,7 @@ export class MockExchangeRateApiClient implements IExchangeRateApiClient {
             target: toCurrency
           },
           rate: 1,
-          timestamp: new Date()
+          timestamp: nowUTC()
         };
       }
       
@@ -116,7 +117,7 @@ export class MockExchangeRateApiClient implements IExchangeRateApiClient {
           target: toCurrency
         },
         rate: mockExchangeRates[fromCode][toCode],
-        timestamp: new Date()
+        timestamp: nowUTC()
       };
     });
   }
@@ -134,7 +135,7 @@ export class MockExchangeRateApiClient implements IExchangeRateApiClient {
       }
       
       const exchangeRates: ExchangeRate[] = [];
-      const now = new Date();
+      const now = nowUTC();
       
       // Create exchange rate objects for each supported target currency
       Object.entries(rates).forEach(([targetCode, rate]) => {

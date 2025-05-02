@@ -3,13 +3,15 @@ import { CurrencyConversionService } from '../currencyConversionService';
 import { ICurrency } from '../../../domain/currency/currency.interface';
 import { IExchangeRateRepository } from '../../../domain/exchange-rate/exchangeRateRepository.interface';
 import { ExchangeRate } from '../../../domain/currency/exchangeRate.type';
+import { nowUTC } from '../../../utils/dateUtils';
 
 // Mock exchange rate repository
 const mockExchangeRateRepository: jest.Mocked<IExchangeRateRepository> = {
   getExchangeRate: jest.fn(),
   getUsdToBrlRate: jest.fn(),
   getAllRates: jest.fn(),
-  getCacheConfig: jest.fn()
+  getCacheConfig: jest.fn(),
+  getExchangeRateMetadata: jest.fn()
 };
 
 // Sample currencies
@@ -49,7 +51,7 @@ describe('CurrencyConversionService', () => {
           target: eur
         },
         rate: 0.85,
-        timestamp: new Date()
+        timestamp: nowUTC()
       };
       
       mockExchangeRateRepository.getExchangeRate.mockResolvedValue(exchangeRate);
@@ -90,7 +92,7 @@ describe('CurrencyConversionService', () => {
           target: eur
         },
         rate: 0.85,
-        timestamp: new Date()
+        timestamp: nowUTC()
       };
       
       mockExchangeRateRepository.getExchangeRate.mockResolvedValue(exchangeRate);
@@ -112,7 +114,7 @@ describe('CurrencyConversionService', () => {
           target: gbp
         },
         rate: 0.9,
-        timestamp: new Date()
+        timestamp: nowUTC()
       };
       
       mockExchangeRateRepository.getExchangeRate.mockResolvedValue(exchangeRate);

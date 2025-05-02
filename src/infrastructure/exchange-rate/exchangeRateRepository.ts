@@ -43,10 +43,10 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
   private client: IExchangeRateApiClient;
   private cacheDuration: number;
   private cacheTag: string;
-  private lastCacheRefreshTime: Date = new Date(0);
-  private lastApiUpdateTime: Date | null = null;
-  private time_last_update_utc: string | null = null;
-  private time_next_update_utc: string | null = null;
+  private lastCacheRefreshTime: Date;
+  private lastApiUpdateTime: Date | null;
+  private time_last_update_utc: string | null;
+  private time_next_update_utc: string | null;
   private fromCache: boolean = false;
   private apiKey: string;
   private apiBaseUrl: string;
@@ -78,6 +78,11 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     this.currencyRegistry = new CurrencyRegistry(); // Instantiate registry
 
     console.log(`ExchangeRateRepository initialized with cache TTL: ${this.cacheDuration}s`);
+
+    this.lastCacheRefreshTime = nowUTC();
+    this.lastApiUpdateTime = nowUTC();
+    this.time_last_update_utc = null;
+    this.time_next_update_utc = null;
   }
 
   /**
@@ -94,7 +99,6 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
         const brl = this.currencyRegistry.getCurrencyByCode('BRL');
         if (!usd || !brl) throw new Error('USD or BRL not found in registry');
 
-        // Ensure URL has proper format with protocol
         const url = `${this.apiBaseUrl}/${this.apiKey}/pair/${usd.code}/${brl.code}`;
         console.log(`Fetching exchange rate from: ${url}`);
         
@@ -116,7 +120,6 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
             );
         }
 
-        // Add detailed logging to debug the response
         console.log('Exchange rate API response timestamps:', {
           time_last_update_unix: data.time_last_update_unix,
           time_last_update_utc: data.time_last_update_utc,
@@ -125,7 +128,13 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
         });
 
         this.lastCacheRefreshTime = nowUTC();
-        this.lastApiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
+        
+        if (data.time_last_update_unix && typeof data.time_last_update_unix === 'number') {
+          this.lastApiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
+        } else {
+          this.lastApiUpdateTime = nowUTC();
+        }
+        
         this.time_last_update_utc = data.time_last_update_utc || null;
         this.time_next_update_utc = data.time_next_update_utc || null;
 
@@ -157,7 +166,6 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
         console.log(`Cache miss - fetching fresh exchange rate data for ${fromCurrency.code} to ${toCurrency.code}`);
         this.fromCache = false;
         
-        // Ensure URL has proper format with protocol
         const url = `${this.apiBaseUrl}/${this.apiKey}/pair/${fromCurrency.code}/${toCurrency.code}`;
         console.log(`Fetching exchange rate from: ${url}`);
         
@@ -180,8 +188,16 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
         }
 
         this.lastCacheRefreshTime = nowUTC();
-        const apiUpdateTime = fromUnixTimestamp(rawData.time_last_update_unix);
-        this.lastApiUpdateTime = apiUpdateTime;
+        
+        let apiUpdateTime: Date;
+        if (rawData.time_last_update_unix && typeof rawData.time_last_update_unix === 'number') {
+          apiUpdateTime = fromUnixTimestamp(rawData.time_last_update_unix);
+          this.lastApiUpdateTime = apiUpdateTime;
+        } else {
+          apiUpdateTime = nowUTC();
+          this.lastApiUpdateTime = apiUpdateTime;
+        }
+        
         this.time_last_update_utc = rawData.time_last_update_utc || null;
         this.time_next_update_utc = rawData.time_next_update_utc || null;
 
@@ -222,7 +238,6 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
 
         const baseCode = 'USD';
         
-        // Ensure URL has proper format with protocol
         const url = `${this.apiBaseUrl}/${this.apiKey}/latest/${baseCode}`;
         console.log(`Fetching all exchange rates from: ${url}`);
         
@@ -245,13 +260,21 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
         }
 
         this.lastCacheRefreshTime = nowUTC();
-        const apiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
-        this.lastApiUpdateTime = apiUpdateTime;
+        
+        // Check if the API provided valid timestamp data
+        let apiUpdateTime: Date;
+        if (data.time_last_update_unix && typeof data.time_last_update_unix === 'number') {
+          apiUpdateTime = fromUnixTimestamp(data.time_last_update_unix);
+          this.lastApiUpdateTime = apiUpdateTime;
+        } else {
+          apiUpdateTime = nowUTC();
+          this.lastApiUpdateTime = apiUpdateTime;
+        }
+        
         this.time_last_update_utc = data.time_last_update_utc || null;
         this.time_next_update_utc = data.time_next_update_utc || null;
 
         const exchangeRates: ExchangeRate[] = [];
-        // Use instance for registry
         const availableCurrencies = this.currencyRegistry.getAllCurrencies(); 
         const baseCurrencyObj = this.currencyRegistry.getCurrencyByCode(baseCode);
 
@@ -273,6 +296,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
             timestamp: apiUpdateTime
           });
         }
+        
         return exchangeRates;
 
       } catch (error) {
@@ -306,10 +330,12 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
    * @returns Exchange rate metadata object
    */
   getExchangeRateMetadata(): ExchangeRateMetadataInterface {
+    const safeLastCacheTime = this.lastCacheRefreshTime || nowUTC();
+    
     return {
-      lastCacheRefreshTime: this.lastCacheRefreshTime,
-      lastApiUpdateTime: this.lastApiUpdateTime,
-      nextCacheRefreshTime: addSecondsToDate(this.lastCacheRefreshTime, this.cacheDuration),
+      lastCacheRefreshTime: safeLastCacheTime,
+      lastApiUpdateTime: this.lastApiUpdateTime || nowUTC(),
+      nextCacheRefreshTime: addSecondsToDate(safeLastCacheTime, this.cacheDuration),
       fromCache: this.fromCache,
       time_last_update_utc: this.time_last_update_utc,
       time_next_update_utc: this.time_next_update_utc

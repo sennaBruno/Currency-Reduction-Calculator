@@ -1,5 +1,6 @@
 import { ExchangeRateRepository } from '../exchangeRateRepository';
 import { MockExchangeRateApiClient, testCurrencies } from './exchangeRateApiMock';
+import { nowUTC } from '../../../utils/dateUtils';
 
 // Mock the Next.js cache functionality since we can't use it in tests
 jest.mock('next/cache', () => ({
@@ -46,6 +47,9 @@ describe('ExchangeRateRepository', () => {
       expect(result.currencyPair.target).toEqual(eur);
       expect(result.rate).toBeGreaterThan(0);
       expect(result.timestamp).toBeInstanceOf(Date);
+      
+      const now = nowUTC();
+      expect(result.timestamp.getTime()).toBeLessThanOrEqual(now.getTime());
     });
     
     it('should throw an error for unsupported currency pairs', async () => {
