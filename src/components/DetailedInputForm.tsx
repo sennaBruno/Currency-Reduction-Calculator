@@ -269,21 +269,6 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
         />
       </div>
 
-      {exchangeRate !== null && sourceCurrency && targetCurrency && (
-        <ExchangeRateDisplay
-          sourceCurrency={sourceCurrency}
-          targetCurrency={targetCurrency}
-          exchangeRate={{
-            currencyPair: {
-              source: sourceCurrency,
-              target: targetCurrency
-            },
-            rate: exchangeRate,
-            timestamp: new Date()
-          }}
-        />
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="traditional">Traditional Calculator</TabsTrigger>
@@ -419,10 +404,5 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
     </div>
   );
 };
-
-// Lazy loading for ExchangeRateDisplay to avoid potential circular dependencies
-const ExchangeRateDisplay = React.lazy(() => import('./ExchangeRateDisplay').then(module => ({
-  default: module.ExchangeRateDisplay
-})));
 
 export default DetailedInputForm; 

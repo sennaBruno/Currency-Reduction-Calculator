@@ -21,6 +21,7 @@ import {
 import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
 import { ICurrency } from '@/domain/currency/currency.interface';
 import { formatCurrencyForText } from '../domain/currency/currencyConversion.utils';
+import { ExchangeRateDisplay } from '@/components/ExchangeRateDisplay';
 
 // API error response interface
 interface ApiErrorResponse {
@@ -308,28 +309,36 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               {/* Display Exchange Rate Info */}
-              <div className="mb-4 p-3 border rounded-md bg-muted/40">
-                <h4 className="text-sm font-medium mb-1">
-                  Exchange Rate {sourceCurrency && targetCurrency && `(${sourceCurrency.code} → ${targetCurrency.code})`}
-                </h4>
-                {exchangeRateLoading && (
-                  <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading rate...</div>
-                )}
-                {exchangeRateError && (
-                   // Replace Alert with a simple div
-                   <div className="p-2 border border-red-500/50 bg-red-500/10 rounded-md">
-                     <p className="text-xs text-red-700 dark:text-red-400">
-                       <span className="font-semibold">Error:</span> {exchangeRateError}
-                     </p>
-                   </div>
-                )}
-                {exchangeRate !== null && !exchangeRateLoading && !exchangeRateError && (
-                  <p className="text-lg font-semibold">{exchangeRate.toFixed(4)}</p>
-                )}
-                 {!exchangeRateLoading && !exchangeRateError && (
-                  <p className="text-xs text-muted-foreground mt-1">Rate fetched automatically. Updates periodically.</p>
-                )}
-              </div>
+              {sourceCurrency && targetCurrency && (
+                <div className="mb-4">
+                  {exchangeRateLoading ? (
+                    <ExchangeRateDisplay
+                      sourceCurrency={sourceCurrency}
+                      targetCurrency={targetCurrency}
+                      isLoading={true}
+                    />
+                  ) : exchangeRateError ? (
+                    <div className="p-4 border border-red-500/50 bg-red-500/10 rounded-md">
+                      <p className="text-sm text-red-700 dark:text-red-400">
+                        <span className="font-semibold">Error:</span> {exchangeRateError}
+                      </p>
+                    </div>
+                  ) : exchangeRate !== null && (
+                    <ExchangeRateDisplay
+                      sourceCurrency={sourceCurrency}
+                      targetCurrency={targetCurrency}
+                      exchangeRate={{
+                        rate: exchangeRate,
+                        timestamp: new Date(),
+                        currencyPair: {
+                          source: sourceCurrency,
+                          target: targetCurrency
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              )}
 
               <DetailedInputForm 
                 onSubmitTraditional={handleTraditionalCalculate}

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { ICurrency } from '../domain/currency';
+import { cn } from '@/lib/utils';
 
 interface CurrencySelectorProps {
   currencies: ICurrency[];
@@ -45,13 +46,19 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({
 
   return (
     <div className="currency-selector">
-      <label className="currency-selector-label" htmlFor={id}>
+      <label className="currency-selector-label font-medium text-sm" htmlFor={id}>
         {label}:
         <select 
           id={id}
           value={selectedCurrency.code}
           onChange={handleChange}
-          className="currency-selector-dropdown"
+          className={cn(
+            "w-full p-2 mt-1 rounded-md border border-input bg-background text-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            "hover:border-primary/50",
+            "dark:text-foreground dark:bg-background dark:border-input",
+            "dark:[&>option]:bg-popover dark:[&>option]:text-popover-foreground"
+          )}
           disabled={disabled}
           aria-label={`Select ${label.toLowerCase()}`}
         >
