@@ -12,36 +12,15 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { 
+  ExchangeRateService, 
+  CalculatorService,
+  CalculationStep, 
+  DetailedCalculationResult, 
+  SimpleCalculationResult 
+} from '@/services';
 
-// Legacy interfaces
-interface CalculationStep {
-  step: number;
-  initialBRL: number;
-  reductionPercentage: number;
-  reductionAmountBRL: number;
-  finalBRL: number;
-}
-
-interface CalculationResult {
-  steps: CalculationStep[];
-  initialBRLNoReduction: number;
-}
-
-// New detailed interfaces
-interface DetailedCalculationStep {
-  step: number;
-  description: string;
-  calculation_details: string;
-  result_intermediate: number;
-  result_running_total: number;
-  explanation?: string;
-}
-
-interface DetailedCalculationResult {
-  steps: DetailedCalculationStep[];
-  final_result: number;
-}
-
+// Local interface for form inputs
 interface FormInputs {
   initialAmountUSD: number;
   exchangeRate: number | null;
@@ -49,10 +28,8 @@ interface FormInputs {
 }
 
 export default function Home() {
-  // State for legacy calculation
-  const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
-  
-  // State for detailed calculation
+  // State for calculation results
+  const [calculationResult, setCalculationResult] = useState<SimpleCalculationResult | null>(null);
   const [detailedResult, setDetailedResult] = useState<DetailedCalculationResult | null>(null);
   
   const [error, setError] = useState<string | undefined>(undefined);
@@ -71,16 +48,8 @@ export default function Home() {
       setExchangeRateLoading(true);
       setExchangeRateError(null);
       try {
-        const response = await fetch('/api/exchange-rate');
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch rate');
-        }
-        const data = await response.json();
-        if (typeof data.rate !== 'number') {
-          throw new Error('Invalid rate format received');
-        }
-        setExchangeRate(data.rate);
+        const rate = await ExchangeRateService.getUsdToBrlRate();
+        setExchangeRate(rate);
       } catch (err: any) {
         console.error("Exchange rate fetch error:", err);
         setExchangeRateError(err.message || 'Could not load exchange rate.');
@@ -113,42 +82,26 @@ export default function Home() {
     setError(undefined);
     setCalculationMode('simple');
 
-    // Combine form data with fetched exchange rate
+    // Store inputs including the fetched rate for download
     const apiPayload = {
       ...data,
-      exchangeRate: exchangeRate, // Add the fetched rate
+      exchangeRate: exchangeRate,
     };
-
-    // Store inputs including the fetched rate for download
-    setFormInputs(apiPayload); 
+    setFormInputs(apiPayload);
 
     try {
-      const response = await fetch('/api/calculate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(apiPayload), // Send payload with rate
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error || 'An error occurred during the calculation');
-        setCalculationResult(null);
-        setDetailedResult(null);
-      } else {
-        // Ensure initialBRLNoReduction is present for consistent interface
-        setCalculationResult({
-          ...result,
-          initialBRLNoReduction: result.initialBRLNoReduction || 0
-        });
-        setDetailedResult(null);
-        setError(undefined);
-      }
-    } catch (fetchError) {
-      console.error("Fetch error:", fetchError);
-      setError('Failed to fetch calculation results');
+      const result = await CalculatorService.processSimpleCalculation(
+        data.initialAmountUSD,
+        exchangeRate,
+        data.reductions
+      );
+      
+      setCalculationResult(result);
+      setDetailedResult(null);
+      setError(undefined);
+    } catch (error: any) {
+      console.error("Calculation error:", error);
+      setError(error.message || 'Failed to perform calculation');
       setCalculationResult(null);
       setDetailedResult(null);
     } finally {
@@ -163,28 +116,14 @@ export default function Home() {
     setCalculationMode('detailed');
 
     try {
-      const response = await fetch('/api/calculate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(result.error || 'An error occurred during the calculation');
-        setCalculationResult(null);
-        setDetailedResult(null);
-      } else {
-        setDetailedResult(result);
-        setCalculationResult(null);
-        setError(undefined);
-      }
-    } catch (fetchError) {
-      console.error("Fetch error:", fetchError);
-      setError('Failed to fetch calculation results');
+      const result = await CalculatorService.processDetailedCalculation(data.steps);
+      
+      setDetailedResult(result);
+      setCalculationResult(null);
+      setError(undefined);
+    } catch (error: any) {
+      console.error("Calculation error:", error);
+      setError(error.message || 'Failed to perform calculation');
       setCalculationResult(null);
       setDetailedResult(null);
     } finally {
@@ -225,10 +164,10 @@ export default function Home() {
     text += `Valor Inicial (BRL): ${formatCurrencyForTxt(calculationResult.initialBRLNoReduction, 'BRL')}\n\n`;
     
     calculationResult.steps.forEach(step => {
-      text += `--- Passo ${step.step} (${step.reductionPercentage.toFixed(2)}%) ---\n`;
-      text += `Valor Antes: ${formatCurrencyForTxt(step.initialBRL, 'BRL')}\n`;
-      text += `Redução: ${formatCurrencyForTxt(step.reductionAmountBRL, 'BRL')}\n`;
-      text += `Valor Depois: ${formatCurrencyForTxt(step.finalBRL, 'BRL')}\n\n`;
+      text += `--- Passo ${step.step} (${step.reductionPercentage?.toFixed(2)}%) ---\n`;
+      text += `Valor Antes: ${formatCurrencyForTxt(step.initialBRL || 0, 'BRL')}\n`;
+      text += `Redução: ${formatCurrencyForTxt(step.reductionAmountBRL || 0, 'BRL')}\n`;
+      text += `Valor Depois: ${formatCurrencyForTxt(step.finalBRL || 0, 'BRL')}\n\n`;
     });
     
     return text;
