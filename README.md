@@ -70,7 +70,11 @@ The dependencies flow inwards: Presentation -> Application -> Domain <- Infrastr
 
 ## Configuration
 
-Environment variables can be configured in `.env.local` (refer to `.env.example` if available for required variables). Key configurations might include:
-- Exchange Rate API provider details
-- Cache TTL settings
-- API throttling limits
+Environment variables can be configured in `.env.local` (refer to `.env.example` for required variables and examples). Key configurations include:
+
+-   **Exchange Rate API Provider (`EXCHANGE_RATE_API_PROVIDER`)**: Specifies the API client implementation. Defaults to `'default'` if not set (observed in logs).
+-   **Exchange Rate API Details (`EXCHANGE_RATE_API_KEY`, `EXCHANGE_RATE_API_BASE_URL`)**: Credentials and endpoint for the chosen provider.
+-   **Cache TTL (`EXCHANGE_RATE_CACHE_REVALIDATE_SECONDS`)**: Cache duration in seconds for exchange rates (e.g., `3600` for 1 hour).
+-   **API Throttling (`API_REQUESTS_PER_SECOND`, `API_THROTTLE_INTERVAL_MS`)**: Limits requests to the external API (e.g., defaults to `2` requests per `1000` ms observed in logs).
+
+*Note: Running `npm run dev` may show console logs indicating the specific runtime values being used for configuration like cache TTL and throttling.*
