@@ -60,10 +60,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     return (
       <Card className="border-destructive/20 bg-destructive/10 shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-destructive">Error</CardTitle>
+          <CardTitle className="text-destructive">Calculation Error</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-destructive">{error}</p>
+          <p className="text-destructive font-medium mb-2">Error details:</p>
+          <div className="p-3 bg-background/50 rounded-md border border-destructive/20 text-sm">
+            {error}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Please check your input values and try again. If the problem persists, try simplifying your calculation.
+          </p>
         </CardContent>
       </Card>
     );

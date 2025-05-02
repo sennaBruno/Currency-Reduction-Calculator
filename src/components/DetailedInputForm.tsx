@@ -15,16 +15,19 @@ const traditionalFormSchema = z.object({
       required_error: 'Initial amount is required',
       invalid_type_error: 'Initial amount must be a number'
     })
-    .positive('Amount must be greater than 0'),
+    .positive('Amount must be greater than 0')
+    .max(1000000000, 'Value too large (max: 1,000,000,000)'),
   exchangeRate: z
     .number({ 
       required_error: 'Exchange rate is required',
       invalid_type_error: 'Exchange rate must be a number'
     })
-    .positive('Exchange rate must be greater than 0'),
+    .positive('Exchange rate must be greater than 0')
+    .max(10000, 'Exchange rate too large (max: 10,000)'),
   reductions: z
     .string()
     .min(1, 'At least one reduction percentage is required')
+    .max(200, 'Input too long')
     .refine(
       (val) => {
         // Check if all values are valid percentages between 0-100
@@ -34,10 +37,15 @@ const traditionalFormSchema = z.object({
           .filter(p => p !== '')
           .map(p => Number(p));
         
+        // Check for too many reductions
+        if (percentages.length > 20) {
+          return false;
+        }
+        
         return percentages.every(p => !isNaN(p) && p >= 0 && p <= 100);
       },
       {
-        message: 'All percentages must be valid numbers between 0 and 100'
+        message: 'All percentages must be valid numbers between 0 and 100 (max 20 reductions)'
       }
     )
 });
@@ -107,6 +115,46 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
     const hasInitialStep = detailedSteps.some(step => step.type === 'initial');
     if (!hasInitialStep) {
       alert('An Initial Value step is required for calculation');
+      return;
+    }
+
+    // Validate values are within reasonable limits
+    const hasInvalidValues = detailedSteps.some(step => {
+      if (step.type === 'initial' && (step.value <= 0 || step.value > 1000000000)) {
+        alert('Initial value must be greater than 0 and less than 1,000,000,000');
+        return true;
+      }
+      
+      if (step.type === 'exchange_rate' && (step.value <= 0 || step.value > 10000)) {
+        alert('Exchange rate must be greater than 0 and less than 10,000');
+        return true;
+      }
+      
+      if (step.type === 'percentage_reduction' && (step.value < 0 || step.value > 100)) {
+        alert('Percentage reduction must be between 0 and 100');
+        return true;
+      }
+      
+      if ((step.type === 'fixed_reduction' || step.type === 'addition') && 
+          (Math.abs(step.value) > 1000000000)) {
+        alert('Fixed reduction or addition values must be less than 1,000,000,000');
+        return true;
+      }
+      
+      if (step.description.length > 200) {
+        alert('Description is too long (max 200 characters)');
+        return true;
+      }
+      
+      if (step.explanation && step.explanation.length > 500) {
+        alert('Explanation is too long (max 500 characters)');
+        return true;
+      }
+
+      return false;
+    });
+
+    if (hasInvalidValues) {
       return;
     }
 

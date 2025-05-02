@@ -13,8 +13,24 @@ interface CalculateRequestBody {
   steps?: ICalculationStep[]; // New field for detailed calculation steps
 }
 
+// Validation constants
+const MAX_STEPS = 20;
+const MAX_INITIAL_VALUE = 1000000000; // 1 billion
+const MAX_EXCHANGE_RATE = 10000;
+const MAX_REDUCTIONS = 20;
+const MAX_STRING_LENGTH = 500;
+
 export async function POST(request: Request) {
   try {
+    // Check request size to prevent DoS attacks
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 10000) { // 10KB limit
+      return NextResponse.json(
+        { error: "Request body too large" },
+        { status: 413 }
+      );
+    }
+
     // Parse the request body
     const body: CalculateRequestBody = await request.json();
     
@@ -22,6 +38,64 @@ export async function POST(request: Request) {
     try {
       if (body.steps && body.steps.length > 0) {
         // New format with detailed steps
+
+        // Validate step count
+        if (body.steps.length > MAX_STEPS) {
+          return NextResponse.json(
+            { error: `Too many steps. Maximum allowed: ${MAX_STEPS}` },
+            { status: 400 }
+          );
+        }
+        
+        // Validate steps values
+        for (const step of body.steps) {
+          // Validate string lengths to prevent memory issues
+          if (
+            (step.description && step.description.length > MAX_STRING_LENGTH) || 
+            (step.explanation && step.explanation.length > MAX_STRING_LENGTH)
+          ) {
+            return NextResponse.json(
+              { error: "Text fields are too long" },
+              { status: 400 }
+            );
+          }
+          
+          // Validate numeric values based on step type
+          if (step.type === 'initial' && (step.value <= 0 || step.value > MAX_INITIAL_VALUE)) {
+            return NextResponse.json(
+              { error: `Invalid initial value. Must be between 0 and ${MAX_INITIAL_VALUE}` },
+              { status: 400 }
+            );
+          }
+          
+          if (step.type === 'exchange_rate' && (step.value <= 0 || step.value > MAX_EXCHANGE_RATE)) {
+            return NextResponse.json(
+              { error: `Invalid exchange rate. Must be between 0 and ${MAX_EXCHANGE_RATE}` },
+              { status: 400 }
+            );
+          }
+          
+          if (step.type === 'percentage_reduction' && (step.value < 0 || step.value > 100)) {
+            return NextResponse.json(
+              { error: "Invalid percentage. Must be between 0 and 100" },
+              { status: 400 }
+            );
+          }
+          
+          if (step.type === 'fixed_reduction' && Math.abs(step.value) > MAX_INITIAL_VALUE) {
+            return NextResponse.json(
+              { error: `Fixed reduction value too large. Maximum: ${MAX_INITIAL_VALUE}` },
+              { status: 400 }
+            );
+          }
+          
+          if (step.type === 'addition' && Math.abs(step.value) > MAX_INITIAL_VALUE) {
+            return NextResponse.json(
+              { error: `Addition value too large. Maximum: ${MAX_INITIAL_VALUE}` },
+              { status: 400 }
+            );
+          }
+        }
         
         // Validate that there is at least one 'initial' type step
         const hasInitialStep = body.steps.some(step => step.type === 'initial');
@@ -46,11 +120,74 @@ export async function POST(request: Request) {
           );
         }
         
-        // Now process the calculation
-        const result = await calculatorService.processDetailedCalculation(body.steps);
-        return NextResponse.json(result, { status: 200 });
-      } else if (body.initialAmountUSD && body.exchangeRate && body.reductions) {
+        // Now process the calculation with a timeout to prevent long-running calculations
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Calculation timeout')), 5000) // 5 second timeout
+        );
+        
+        try {
+          const result = await Promise.race([
+            calculatorService.processDetailedCalculation(body.steps),
+            timeoutPromise
+          ]);
+          return NextResponse.json(result, { status: 200 });
+        } catch (timeoutError) {
+          if (timeoutError instanceof Error && timeoutError.message === 'Calculation timeout') {
+            return NextResponse.json(
+              { error: "Calculation took too long. Please simplify your request." },
+              { status: 408 }
+            );
+          }
+          throw timeoutError; // Re-throw if it's not a timeout error
+        }
+      } else if (body.initialAmountUSD !== undefined && body.exchangeRate && body.reductions) {
         // Old format with simple reductions
+        
+        // Validate input values
+        if (body.initialAmountUSD <= 0 || body.initialAmountUSD > MAX_INITIAL_VALUE) {
+          return NextResponse.json(
+            { error: `Invalid initial amount. Must be between 0 and ${MAX_INITIAL_VALUE}` },
+            { status: 400 }
+          );
+        }
+        
+        if (body.exchangeRate <= 0 || body.exchangeRate > MAX_EXCHANGE_RATE) {
+          return NextResponse.json(
+            { error: `Invalid exchange rate. Must be between 0 and ${MAX_EXCHANGE_RATE}` },
+            { status: 400 }
+          );
+        }
+        
+        if (body.reductions.length > MAX_STRING_LENGTH) {
+          return NextResponse.json(
+            { error: "Reductions string too long" },
+            { status: 400 }
+          );
+        }
+        
+        // Validate reductions format and count
+        const reductionsArray = body.reductions.split(',')
+          .map(r => r.trim())
+          .filter(r => r !== '');
+        
+        if (reductionsArray.length > MAX_REDUCTIONS) {
+          return NextResponse.json(
+            { error: `Too many reductions. Maximum allowed: ${MAX_REDUCTIONS}` },
+            { status: 400 }
+          );
+        }
+        
+        // Validate each reduction percentage
+        for (const reduction of reductionsArray) {
+          const value = Number(reduction);
+          if (isNaN(value) || value < 0 || value > 100) {
+            return NextResponse.json(
+              { error: "Invalid reduction percentage. Must be between 0 and 100" },
+              { status: 400 }
+            );
+          }
+        }
+        
         const result = await calculatorService.processSimpleCalculation(
           body.initialAmountUSD,
           body.exchangeRate,

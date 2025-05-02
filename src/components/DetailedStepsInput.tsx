@@ -42,6 +42,9 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
   onChange,
   disabled = false 
 }) => {
+  // Maximum number of steps allowed
+  const MAX_STEPS = 10;
+
   // Helper function to get placeholder text based on step type
   const getValuePlaceholder = (type: string): string => {
     switch (type) {
@@ -70,6 +73,12 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
 
   // Add a new step
   const handleAddStep = () => {
+    // Prevent adding more than the maximum allowed steps
+    if (steps.length >= MAX_STEPS) {
+      alert(`Maximum of ${MAX_STEPS} steps allowed for performance reasons.`);
+      return;
+    }
+    
     // If no steps exist yet, default to initial step
     const defaultType = steps.length === 0 || !steps.some(step => step.type === 'initial') 
       ? 'initial' 
@@ -106,17 +115,24 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
       <div className="flex flex-col space-y-2">
         <div className="flex items-center justify-between">
           <Label>Calculation Steps</Label>
-          <Button 
-            type="button" 
-            variant="outline" 
-            size="sm" 
-            onClick={handleAddStep}
-            disabled={disabled}
-            className="flex items-center gap-1"
-          >
-            <PlusCircle size={16} />
-            Add Step
-          </Button>
+          <div className="flex items-center gap-2">
+            {steps.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {steps.length}/{MAX_STEPS} steps
+              </span>
+            )}
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              onClick={handleAddStep}
+              disabled={disabled || steps.length >= MAX_STEPS}
+              className="flex items-center gap-1"
+            >
+              <PlusCircle size={16} />
+              Add Step
+            </Button>
+          </div>
         </div>
         
         {!hasInitialStep && steps.length > 0 && (

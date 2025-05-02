@@ -19,6 +19,16 @@ import {
   SimpleCalculationResult,
 } from '@/services';
 
+// API error response interface
+interface ApiErrorResponse {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
 // Local interface for form inputs
 interface FormInputs {
   initialAmountUSD: number;
@@ -109,9 +119,23 @@ export default function Home() {
       scrollToTop();
     } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
-      setError(error instanceof Error ? error.message : 'Failed to perform calculation');
+      // Extract error message from response if available
+      let errorMessage = 'Failed to perform calculation';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Try to extract message from API response error
+        const errorObj = error as ApiErrorResponse;
+        if (errorObj.response?.data?.error) {
+          errorMessage = errorObj.response.data.error;
+        }
+      }
+      
+      setError(errorMessage);
       setCalculationResult(null);
       setDetailedResult(null);
+      scrollToTop(); // Scroll to top to show error
     } finally {
       setIsLoading(false);
     }
@@ -132,9 +156,23 @@ export default function Home() {
       scrollToTop();
     } catch (error: Error | unknown) {
       console.error("Calculation error:", error);
-      setError(error instanceof Error ? error.message : 'Failed to perform calculation');
+      // Extract error message from response if available
+      let errorMessage = 'Failed to perform calculation';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Try to extract message from API response error
+        const errorObj = error as ApiErrorResponse;
+        if (errorObj.response?.data?.error) {
+          errorMessage = errorObj.response.data.error;
+        }
+      }
+      
+      setError(errorMessage);
       setCalculationResult(null);
       setDetailedResult(null);
+      scrollToTop(); // Scroll to top to show error
     } finally {
       setIsLoading(false);
     }
