@@ -1,29 +1,65 @@
 import { unstable_cache as cache } from 'next/cache';
 import { IExchangeRateRepository } from '../../domain/exchange-rate/exchangeRateRepository.interface';
-import { ExchangeRateApiClient } from '../api/exchangeRateApi.client';
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
+import { IExchangeRateApiClient } from '../api/exchangeRateApiClient.interface';
+import { ExchangeRateClientFactory, ExchangeRateApiProvider } from '../api/exchangeRateClientFactory';
+
+/**
+ * Configuration options for the ExchangeRateRepository
+ */
+export interface ExchangeRateRepositoryConfig {
+  /**
+   * Cache duration in seconds
+   * Default: 3600 (1 hour)
+   */
+  cacheTTL?: number;
+  
+  /**
+   * Cache tag for invalidation
+   * Default: 'exchange-rate'
+   */
+  cacheTag?: string;
+  
+  /**
+   * API provider to use
+   * Default: 'default' (uses environment variable EXCHANGE_RATE_API_PROVIDER if set)
+   */
+  apiProvider?: ExchangeRateApiProvider;
+}
 
 /**
  * Implementation of the exchange rate repository using the API client
  * and Next.js caching
  */
 export class ExchangeRateRepository implements IExchangeRateRepository {
-  private client: ExchangeRateApiClient;
+  private client: IExchangeRateApiClient;
   private cacheDuration: number;
+  private cacheTag: string;
 
   constructor(
-    client?: ExchangeRateApiClient,
-    cacheDuration?: number
+    client?: IExchangeRateApiClient,
+    config?: ExchangeRateRepositoryConfig
   ) {
-    // Use provided client or create a new one
-    this.client = client || new ExchangeRateApiClient();
+    // Use provided client, create using factory, or create default
+    if (client) {
+      this.client = client;
+    } else if (config?.apiProvider) {
+      this.client = ExchangeRateClientFactory.createClient(config.apiProvider);
+    } else {
+      this.client = ExchangeRateClientFactory.createDefaultClient();
+    }
     
     // Use provided cache duration or fall back to environment variable, then to default (1 hour)
-    this.cacheDuration = cacheDuration || 
+    this.cacheDuration = config?.cacheTTL || 
       (process.env.EXCHANGE_RATE_CACHE_REVALIDATE_SECONDS ? 
         parseInt(process.env.EXCHANGE_RATE_CACHE_REVALIDATE_SECONDS, 10) : 
         3600);
+        
+    // Use provided cache tag or default
+    this.cacheTag = config?.cacheTag || 'exchange-rate';
+    
+    console.log(`ExchangeRateRepository initialized with cache TTL: ${this.cacheDuration}s`);
   }
 
   /**
@@ -45,7 +81,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       ['usd-brl-rate'], // Cache key
       {
         revalidate: this.cacheDuration, // Revalidate based on configured duration
-        tags: ['exchange-rate'] // Tag for potential invalidation
+        tags: [this.cacheTag] // Tag for potential invalidation
       }
     );
 
@@ -77,7 +113,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       [cacheKey], // Cache key
       {
         revalidate: this.cacheDuration, // Revalidate based on configured duration
-        tags: ['exchange-rate'] // Tag for potential invalidation
+        tags: [this.cacheTag] // Tag for potential invalidation
       }
     );
 
@@ -104,11 +140,22 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       ['all-exchange-rates'], // Cache key
       {
         revalidate: this.cacheDuration, // Revalidate based on configured duration
-        tags: ['exchange-rate'] // Tag for potential invalidation
+        tags: [this.cacheTag] // Tag for potential invalidation
       }
     );
 
     // Call and return the cached function
     return getCachedAllRates();
+  }
+  
+  /**
+   * Gets the current cache configuration
+   * @returns Cache configuration object
+   */
+  getCacheConfig(): { cacheDuration: number, cacheTag: string } {
+    return {
+      cacheDuration: this.cacheDuration,
+      cacheTag: this.cacheTag
+    };
   }
 } 

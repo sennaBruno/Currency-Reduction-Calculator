@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { ExchangeRateService } from '../../../application/exchange-rate/exchangeRateService';
-import { ExchangeRateApiClient } from '../../../infrastructure/api/exchangeRateApi.client';
+import { ExchangeRateRepository } from '../../../infrastructure/exchange-rate/exchangeRateRepository';
 
-// Create an instance of the exchange rate service with our ExchangeRateApiClient
-const exchangeRateRepository = new ExchangeRateApiClient();
+// Create an instance of the exchange rate service with the repository to leverage caching
+const exchangeRateRepository = new ExchangeRateRepository(undefined, {
+  cacheTTL: process.env.EXCHANGE_RATE_CACHE_TTL 
+    ? parseInt(process.env.EXCHANGE_RATE_CACHE_TTL, 10) 
+    : 1800, // Default to 30 minutes for USD/BRL rate
+  cacheTag: 'api-exchange-rate-usd-brl'
+});
 const exchangeRateService = new ExchangeRateService(exchangeRateRepository);
 
 export async function GET() {

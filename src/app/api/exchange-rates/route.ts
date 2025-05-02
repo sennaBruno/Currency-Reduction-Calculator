@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
 import { ExchangeRateService } from '../../../application/currency/exchangeRate.service';
-import { ExchangeRateApiClient } from '../../../infrastructure/api/exchangeRateApi.client';
+import { ExchangeRateRepository } from '../../../infrastructure/exchange-rate/exchangeRateRepository';
 import { CurrencyRegistry } from '../../../application/currency/currencyRegistry.service';
 
 // Create instances of the required services
-const exchangeRateRepository = new ExchangeRateApiClient();
+// Use repository pattern with configurable provider and caching
+const exchangeRateRepository = new ExchangeRateRepository(undefined, {
+  cacheTTL: process.env.EXCHANGE_RATE_CACHE_TTL 
+    ? parseInt(process.env.EXCHANGE_RATE_CACHE_TTL, 10) 
+    : 3600, // Default to 1 hour
+  cacheTag: 'api-exchange-rates',
+  apiProvider: process.env.EXCHANGE_RATE_API_PROVIDER as 'default' | 'external' || 'default'
+});
 const exchangeRateService = new ExchangeRateService(exchangeRateRepository);
 const currencyRegistry = new CurrencyRegistry();
-
-interface ExchangeRateRequestParams {
-  fromCurrency?: string;
-  toCurrency?: string;
-}
 
 /**
  * GET handler for the /api/exchange-rates endpoint
