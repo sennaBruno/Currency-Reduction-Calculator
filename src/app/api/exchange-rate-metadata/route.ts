@@ -20,17 +20,34 @@ const exchangeRateService = new ExchangeRateService(exchangeRateRepository);
  */
 export async function GET() {
   try {
+    // First, ensure we have fresh data by fetching a rate which will update the metadata
+    // We need to use the repository directly since the exchangeRate.service doesn't have fetchUsdBrlRate
+    await exchangeRateRepository.getUsdToBrlRate();
+    console.log('Fetched USD/BRL rate before getting metadata');
+    
+    // Now get the metadata which should include the timestamps from the API
     const metadata = await exchangeRateService.getExchangeRateMetadata();
     
-    // Format dates for response
+    // Log the metadata for debugging
+    console.log('Exchange rate metadata:', {
+      lastApiUpdateTime: metadata.lastApiUpdateTime,
+      time_last_update_utc: metadata.time_last_update_utc,
+      time_next_update_utc: metadata.time_next_update_utc
+    });
+    
+    // Format dates and include new UTC strings for response
     const response = {
       lastApiUpdateTime: metadata.lastApiUpdateTime ? metadata.lastApiUpdateTime.toISOString() : null,
       lastCacheRefreshTime: metadata.lastCacheRefreshTime.toISOString(),
       nextCacheRefreshTime: metadata.nextCacheRefreshTime.toISOString(),
-      fromCache: metadata.fromCache
+      fromCache: metadata.fromCache,
+      // Add the UTC strings directly from the metadata
+      time_last_update_utc: metadata.time_last_update_utc,
+      time_next_update_utc: metadata.time_next_update_utc
     };
     
     return NextResponse.json(response, { status: 200 });
+    
   } catch (error) {
     console.error('Error retrieving exchange rate metadata:', error);
     return NextResponse.json(

@@ -41,6 +41,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
   private readonly throttledClient: ThrottledApiClient;
   private lastCacheRefreshTime: Date = new Date();
   private lastApiUpdateTime: Date | null = null;
+  private time_last_update_utc: string | null = null;
+  private time_next_update_utc: string | null = null;
   
   constructor() {
     // Use environment variable or fallback to default key (for development only)
@@ -160,6 +162,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
           this.lastCacheRefreshTime = new Date();
           const apiUpdateTime = new Date(data.time_last_update_unix * 1000);
           this.lastApiUpdateTime = apiUpdateTime;
+          this.time_last_update_utc = data.time_last_update_utc || null;
+          this.time_next_update_utc = data.time_next_update_utc || null;
           
           return {
             currencyPair: {
@@ -232,6 +236,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
         this.lastCacheRefreshTime = new Date();
         const apiUpdateTime = new Date(data.time_last_update_unix * 1000);
         this.lastApiUpdateTime = apiUpdateTime;
+        this.time_last_update_utc = data.time_last_update_utc || null;
+        this.time_next_update_utc = data.time_next_update_utc || null;
         
         // Get all currencies from the registry
         const availableCurrencies = this.currencyRegistry.getAllCurrencies();
@@ -327,7 +333,9 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
       lastCacheRefreshTime: this.lastCacheRefreshTime,
       lastApiUpdateTime: this.lastApiUpdateTime,
       nextCacheRefreshTime: new Date(this.lastCacheRefreshTime.getTime() + (3600 * 1000)), // 1 hour from now
-      fromCache: false // Always false for direct API client
+      fromCache: false, 
+      time_last_update_utc: this.time_last_update_utc,
+      time_next_update_utc: this.time_next_update_utc
     };
   }
 } 

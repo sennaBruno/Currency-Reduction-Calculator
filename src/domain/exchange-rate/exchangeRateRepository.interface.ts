@@ -12,26 +12,18 @@ export interface CacheConfig {
  * Metadata about the exchange rate data and cache status
  */
 export interface ExchangeRateMetadata {
-  /**
-   * When our cache was last refreshed
-   */
+  /** Timestamp of the last successful data fetch and cache update */
   lastCacheRefreshTime: Date;
-  
-  /**
-   * When the API provider last updated their data
-   * This comes directly from the API response
-   */
+  /** Timestamp provided by the API indicating when the data was last updated */
   lastApiUpdateTime: Date | null;
-  
-  /**
-   * When the cache will be refreshed next
-   */
+  /** Calculated timestamp when the cache is expected to refresh next */
   nextCacheRefreshTime: Date;
-  
-  /**
-   * Whether the current data is from cache or freshly fetched
-   */
+  /** Flag indicating if the last data retrieval was served from cache */
   fromCache: boolean;
+  /** UTC timestamp string from the API for the last update */
+  time_last_update_utc: string | null;
+  /** UTC timestamp string from the API for the next scheduled update */
+  time_next_update_utc: string | null;
 }
 
 /**
