@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Currency Reduction Calculator",
+  title: "Currency Exchange Rate Calculator",
   description: "Calculate step-by-step reductions of an amount in USD to BRL",
 };
 

@@ -269,7 +269,7 @@ export default function Home() {
   return (
     <div className="bg-background">
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Currency Reduction Calculator</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">Currency Exchange Rate Calculator</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
           <Card className="shadow-sm">
