@@ -17,15 +17,15 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { ICurrency } from '../domain/currency';
 import { formatCurrency } from '../domain/currency/currencyConversion.utils';
+import { useAppSelector } from '@/store/hooks';
 
 // Legacy interface
 interface CalculationStep {
   step: number;
-  initialBRL?: number; // Make optional to handle both formats
-  reductionPercentage?: number; // Make optional
-  reductionAmountBRL?: number; // Make optional
-  finalBRL?: number; // Make optional
-  // New format properties
+  initialBRL?: number; 
+  reductionPercentage?: number; 
+  reductionAmountBRL?: number; 
+  finalBRL?: number; 
   description?: string;
   calculation_details?: string;
   result_intermediate?: number;
@@ -49,8 +49,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   onDownload,
   targetCurrency = { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
 }) => {
+  const reduxError = useAppSelector(state => state.results.error);
+  const displayError = reduxError || error;
+  
   // If there's an error, display the error message
-  if (error) {
+  if (displayError) {
     return (
       <Card className="border-destructive/20 bg-destructive/10 shadow-sm">
         <CardHeader className="pb-2">
@@ -59,7 +62,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <CardContent>
           <p className="text-destructive font-medium mb-2">Error details:</p>
           <div className="p-3 bg-background/50 rounded-md border border-destructive/20 text-sm">
-            {error}
+            {displayError}
           </div>
           <p className="text-xs text-muted-foreground mt-3">
             Please check your input values and try again. If the problem persists, try simplifying your calculation.
@@ -83,7 +86,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   // Extract the final value
   let finalValue = initialBRLNoReduction;
   if (steps.length > 0) {
-    // Try to get the final value from the last step
     const lastStep = steps[steps.length - 1];
     if (lastStep.finalBRL !== undefined) {
       finalValue = lastStep.finalBRL;

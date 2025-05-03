@@ -9,6 +9,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Checkbox } from "./ui/checkbox";
 import { ICurrency } from '../domain/currency';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { updateTraditionalInput, clearForm } from '@/store/slices/calculatorSlice';
 
 /**
  * Validation schema for the traditional calculator form
@@ -43,9 +45,6 @@ interface TraditionalCalculatorFormProps {
   }) => void;
   onReset?: () => void;
   isLoading?: boolean;
-  exchangeRate?: number | null;
-  sourceCurrency: ICurrency;
-  targetCurrency: ICurrency;
   useAutoRate: boolean;
   onAutoRateChange: (checked: boolean) => void;
 }
@@ -54,12 +53,12 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
   onSubmit,
   onReset,
   isLoading = false,
-  exchangeRate = null,
-  sourceCurrency,
-  targetCurrency,
   useAutoRate,
   onAutoRateChange
 }) => {
+  const dispatch = useAppDispatch();
+  const { sourceCurrency, targetCurrency, exchangeRate } = useAppSelector(state => state.currency);
+  
   const traditionalForm = useForm<TraditionalFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(traditionalFormSchema) as any,
@@ -71,7 +70,6 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
     }
   });
 
-  // Apply exchange rate when it changes or when the checkbox state changes
   useEffect(() => {
     if (exchangeRate && useAutoRate) {
       traditionalForm.setValue('exchangeRate', exchangeRate);
@@ -79,6 +77,8 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
   }, [exchangeRate, useAutoRate, traditionalForm]);
 
   const handleTraditionalSubmit: SubmitHandler<TraditionalFormValues> = (data) => {
+    dispatch(updateTraditionalInput(JSON.stringify(data)));
+    
     onSubmit({
       ...data,
       sourceCurrency,
@@ -92,6 +92,9 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
       exchangeRate: undefined,
       reductions: ''
     });
+    
+    dispatch(clearForm());
+    
     if (onReset) {
       onReset();
     }

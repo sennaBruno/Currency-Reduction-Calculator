@@ -8,6 +8,8 @@ import { PlusCircle, InfoIcon, AlertCircle } from "lucide-react";
 import { ICurrency } from '../domain/currency';
 import StepInputRow from './StepInputRow';
 import { InputStep, getStepDescriptionPlaceholder } from '../types/calculator';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { addStep, updateStep, removeStep } from '@/store/slices/calculatorSlice';
 
 interface DetailedStepsInputProps {
   steps: InputStep[];
@@ -30,6 +32,7 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
 }) => {
   // Maximum number of steps allowed
   const MAX_STEPS = 10;
+  const dispatch = useAppDispatch();
 
   const handleAddStep = () => {
     if (steps.length >= MAX_STEPS) {
@@ -47,24 +50,31 @@ const DetailedStepsInput: React.FC<DetailedStepsInputProps> = ({
       value: 0,
       explanation: ''
     };
+
+    dispatch(addStep(newStep));
     onChange([...steps, newStep]);
   };
 
   const handleRemoveStep = (index: number) => {
+    dispatch(removeStep(index));
+    
     const newSteps = [...steps];
     newSteps.splice(index, 1);
     onChange(newSteps);
   };
 
   const handleStepChange: StepChangeHandler = (index, field, value) => {
-    const newSteps = [...steps];
+    const updates: Partial<InputStep> = { [field]: value };
     
-    if (field === 'type' && (!newSteps[index].description || 
-        newSteps[index].description === getStepDescriptionPlaceholder(newSteps[index].type, sourceCurrency, targetCurrency))) {
-      newSteps[index].description = getStepDescriptionPlaceholder(value as string, sourceCurrency, targetCurrency);
+    if (field === 'type' && (!steps[index].description || 
+        steps[index].description === getStepDescriptionPlaceholder(steps[index].type, sourceCurrency, targetCurrency))) {
+      updates.description = getStepDescriptionPlaceholder(value as string, sourceCurrency, targetCurrency);
     }
     
-    newSteps[index] = { ...newSteps[index], [field]: value };
+    dispatch(updateStep({ index, updates }));
+    
+    const newSteps = [...steps];
+    newSteps[index] = { ...newSteps[index], ...updates };
     onChange(newSteps);
   };
 

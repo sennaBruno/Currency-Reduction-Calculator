@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ICurrency } from '../domain/currency';
-import { getSourceCurrency, getTargetCurrency } from '../utils/currencyUtils';
 import TraditionalCalculatorForm, { TraditionalFormValues } from './TraditionalCalculatorForm';
 import DetailedCalculatorTab from './DetailedCalculatorTab';
 import CurrencySection from './CurrencySection';
 import { InputStep } from '../types/calculator';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setMode } from '@/store/slices/calculatorSlice';
 
 /**
  * Props for the DetailedInputForm component
@@ -24,12 +25,8 @@ interface DetailedInputFormProps {
   }) => void;
   onReset?: () => void;
   isLoading?: boolean;
-  exchangeRate?: number | null;
   exchangeRateLastUpdated?: Date | string | null;
-  exchangeRateIsLoading?: boolean;
   exchangeRateError?: string | null;
-  availableCurrencies: ICurrency[];
-  onCurrencyChange?: (sourceCurrency: ICurrency, targetCurrency: ICurrency) => void;
 }
 
 const DetailedInputForm: React.FC<DetailedInputFormProps> = ({ 
@@ -37,51 +34,16 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
   onSubmitDetailed,
   onReset, 
   isLoading = false,
-  exchangeRate = null,
   exchangeRateLastUpdated = null,
-  exchangeRateIsLoading = false,
   exchangeRateError = null,
-  availableCurrencies = [],
-  onCurrencyChange
 }) => {
-  const [activeTab, setActiveTab] = useState<string>('traditional');
   const [useAutoRate, setUseAutoRate] = useState<boolean>(true);
   
-  const [sourceCurrency, setSourceCurrency] = useState<ICurrency>(
-    getSourceCurrency(availableCurrencies)
-  );
+  const dispatch = useAppDispatch();
+  const { calculationMode } = useAppSelector(state => state.calculator);
+  const calculatorIsLoading = useAppSelector(state => state.calculator.isLoading);
   
-  const [targetCurrency, setTargetCurrency] = useState<ICurrency>(
-    getTargetCurrency(availableCurrencies, sourceCurrency)
-  );
-
-  // Update currency states when availableCurrencies changes
-  useEffect(() => {
-    if (availableCurrencies.length > 0) {
-      const newSourceCurrency = getSourceCurrency(availableCurrencies);
-      setSourceCurrency(newSourceCurrency);
-      
-      const newTargetCurrency = getTargetCurrency(
-        availableCurrencies, 
-        newSourceCurrency
-      );
-      setTargetCurrency(newTargetCurrency);
-    }
-  }, [availableCurrencies]);
-
-  const handleSourceCurrencyChange = (currency: ICurrency) => {
-    setSourceCurrency(currency);
-    if (onCurrencyChange && targetCurrency) {
-      onCurrencyChange(currency, targetCurrency);
-    }
-  };
-
-  const handleTargetCurrencyChange = (currency: ICurrency) => {
-    setTargetCurrency(currency);
-    if (onCurrencyChange && sourceCurrency) {
-      onCurrencyChange(sourceCurrency, currency);
-    }
-  };
+  const combinedLoading = isLoading || calculatorIsLoading;
 
   const handleReset = () => {
     if (onReset) {
@@ -89,21 +51,19 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
     }
   };
 
+  const handleTabChange = (value: string) => {
+    dispatch(setMode(value as 'traditional' | 'detailed'));
+  };
+
   return (
     <div className="space-y-6">
       <CurrencySection 
-        availableCurrencies={availableCurrencies}
-        sourceCurrency={sourceCurrency}
-        targetCurrency={targetCurrency}
-        onSourceCurrencyChange={handleSourceCurrencyChange}
-        onTargetCurrencyChange={handleTargetCurrencyChange}
-        exchangeRate={exchangeRate}
         exchangeRateLastUpdated={exchangeRateLastUpdated}
-        exchangeRateIsLoading={exchangeRateIsLoading}
+        exchangeRateIsLoading={combinedLoading}
         exchangeRateError={exchangeRateError}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={calculationMode} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="traditional">Traditional Calculator</TabsTrigger>
           <TabsTrigger value="detailed">Detailed Calculator</TabsTrigger>
@@ -113,10 +73,7 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
           <TraditionalCalculatorForm
             onSubmit={onSubmitTraditional}
             onReset={handleReset}
-            isLoading={isLoading}
-            exchangeRate={exchangeRate}
-            sourceCurrency={sourceCurrency}
-            targetCurrency={targetCurrency}
+            isLoading={combinedLoading}
             useAutoRate={useAutoRate}
             onAutoRateChange={setUseAutoRate}
           />
@@ -126,10 +83,7 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
           <DetailedCalculatorTab
             onSubmit={onSubmitDetailed}
             onReset={handleReset}
-            isLoading={isLoading}
-            sourceCurrency={sourceCurrency}
-            targetCurrency={targetCurrency}
-            exchangeRate={exchangeRate}
+            isLoading={combinedLoading}
           />
         </TabsContent>
       </Tabs>

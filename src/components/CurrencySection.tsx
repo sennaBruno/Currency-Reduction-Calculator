@@ -1,35 +1,63 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CurrencySelector } from './CurrencySelector';
 import { ExchangeRateDisplay } from './ExchangeRateDisplay';
 import { ICurrency } from '../domain/currency';
 import { ExchangeRate } from '../domain/currency/exchangeRate.type';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setSourceCurrency, setTargetCurrency, setExchangeRate } from '@/store/slices/currencySlice';
+import { setLoading } from '@/store/slices/calculatorSlice';
+import { ExchangeRateService } from '@/services';
 
 interface CurrencySectionProps {
-  availableCurrencies: ICurrency[];
-  sourceCurrency: ICurrency;
-  targetCurrency: ICurrency;
-  onSourceCurrencyChange: (currency: ICurrency) => void;
-  onTargetCurrencyChange: (currency: ICurrency) => void;
-  exchangeRate?: number | null;
   exchangeRateLastUpdated?: Date | string | null;
   exchangeRateIsLoading?: boolean;
   exchangeRateError?: string | null;
 }
 
 const CurrencySection: React.FC<CurrencySectionProps> = ({
-  availableCurrencies,
-  sourceCurrency,
-  targetCurrency,
-  onSourceCurrencyChange,
-  onTargetCurrencyChange,
-  exchangeRate,
   exchangeRateLastUpdated,
   exchangeRateIsLoading = false,
   exchangeRateError
 }) => {
-  // Create an ExchangeRate object when we have a valid rate
+  const dispatch = useAppDispatch();
+  const { 
+    sourceCurrency, 
+    targetCurrency, 
+    exchangeRate,
+    availableCurrencies 
+  } = useAppSelector((state: any) => state.currency);
+  const calculatorIsLoading = useAppSelector((state: any) => state.calculator.isLoading);
+  
+  const isLoading = exchangeRateIsLoading || calculatorIsLoading;
+
+  const handleSourceCurrencyChange = (currency: ICurrency) => {
+    dispatch(setSourceCurrency(currency));
+    fetchExchangeRateForCurrencyPair(currency, targetCurrency);
+  };
+
+  const handleTargetCurrencyChange = (currency: ICurrency) => {
+    dispatch(setTargetCurrency(currency));
+    fetchExchangeRateForCurrencyPair(sourceCurrency, currency);
+  };
+  
+  const fetchExchangeRateForCurrencyPair = async (source: ICurrency, target: ICurrency) => {
+    dispatch(setLoading(true));
+    
+    try {
+      const rateData = await ExchangeRateService.getExchangeRateForPairWithMetadata(source, target);
+      if (rateData.rate !== null) {
+        dispatch(setExchangeRate(rateData.rate));
+      }
+    } catch (error) {
+      console.error(`Exchange rate fetch error for ${source.code}/${target.code}:`, error);
+      dispatch(setExchangeRate(0)); 
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
   const exchangeRateObject: ExchangeRate | undefined = exchangeRate 
     ? {
         currencyPair: {
@@ -41,20 +69,20 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
       }
     : undefined;
 
-  if (exchangeRateIsLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <CurrencySelector
             currencies={availableCurrencies}
             selectedCurrency={sourceCurrency}
-            onChange={onSourceCurrencyChange}
+            onChange={handleSourceCurrencyChange}
             label="Source Currency"
           />
           <CurrencySelector
             currencies={availableCurrencies}
             selectedCurrency={targetCurrency}
-            onChange={onTargetCurrencyChange}
+            onChange={handleTargetCurrencyChange}
             label="Target Currency"
           />
         </div>
@@ -75,13 +103,13 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
           <CurrencySelector
             currencies={availableCurrencies}
             selectedCurrency={sourceCurrency}
-            onChange={onSourceCurrencyChange}
+            onChange={handleSourceCurrencyChange}
             label="Source Currency"
           />
           <CurrencySelector
             currencies={availableCurrencies}
             selectedCurrency={targetCurrency}
-            onChange={onTargetCurrencyChange}
+            onChange={handleTargetCurrencyChange}
             label="Target Currency"
           />
         </div>
@@ -101,13 +129,13 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
         <CurrencySelector
           currencies={availableCurrencies}
           selectedCurrency={sourceCurrency}
-          onChange={onSourceCurrencyChange}
+          onChange={handleSourceCurrencyChange}
           label="Source Currency"
         />
         <CurrencySelector
           currencies={availableCurrencies}
           selectedCurrency={targetCurrency}
-          onChange={onTargetCurrencyChange}
+          onChange={handleTargetCurrencyChange}
           label="Target Currency"
         />
       </div>

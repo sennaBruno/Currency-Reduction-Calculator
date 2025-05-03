@@ -20,6 +20,10 @@ import {
 import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
 import { ICurrency } from '@/domain/currency/currency.interface';
 import { formatCurrencyForText } from '../domain/currency/currencyConversion.utils';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setSourceCurrency, setTargetCurrency, setExchangeRate, addCurrency } from '@/store/slices/currencySlice';
+import { setLoading as setCalculatorLoading } from '@/store/slices/calculatorSlice';
+import { setTraditionalResult, setDetailedResults, setError as setResultsError, clearResults } from '@/store/slices/resultsSlice';
 
 // API error response interface
 interface ApiErrorResponse {
@@ -38,6 +42,9 @@ interface FormInputs {
 }
 
 export default function Home() {
+  const dispatch = useAppDispatch();
+  const { exchangeRate } = useAppSelector(state => state.currency);
+  
   // State for calculation results
   const [calculationResult, setCalculationResult] = useState<SimpleCalculationResult | null>(null);
   const [detailedResult, setDetailedResult] = useState<DetailedCalculationResult | null>(null);
@@ -47,19 +54,9 @@ export default function Home() {
   const [formInputs, setFormInputs] = useState<FormInputs | null>(null);
   const [calculationMode, setCalculationMode] = useState<'simple' | 'detailed'>('simple');
 
-  // State for exchange rate
-  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [exchangeRateLoading, setExchangeRateLoading] = useState<boolean>(true);
-  const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
-  // Adicione estado para armazenar a data da última atualização
+  // State for exchange rate updates
   const [exchangeRateLastUpdated, setExchangeRateLastUpdated] = useState<Date | null>(null);
-
-  // Add state for available currencies
-  const [availableCurrencies, setAvailableCurrencies] = useState<ICurrency[]>([]);
-  
-  // Add state for currently selected currencies
-  const [sourceCurrency, setSourceCurrency] = useState<ICurrency | null>(null);
-  const [targetCurrency, setTargetCurrency] = useState<ICurrency | null>(null);
+  const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
 
   // Function to scroll to top of page
   const scrollToTop = () => {
@@ -71,32 +68,36 @@ export default function Home() {
 
   // Fetch currencies and exchange rate on mount
   useEffect(() => {
-    // Get supported currencies
     const currencyRegistry = new CurrencyRegistry();
     const currencies = currencyRegistry.getAllCurrencies();
-    setAvailableCurrencies(currencies);
+    
+    currencies.forEach(currency => {
+      dispatch(addCurrency(currency));
+    });
     
     // Set default currencies
     const defaultSourceCurrency = currencies.find(c => c.code === 'USD') || currencies[0];
     const defaultTargetCurrency = currencies.find(c => c.code === 'BRL') || currencies[1];
     
-    setSourceCurrency(defaultSourceCurrency);
-    setTargetCurrency(defaultTargetCurrency);
+    dispatch(setSourceCurrency(defaultSourceCurrency));
+    dispatch(setTargetCurrency(defaultTargetCurrency));
 
     const fetchRate = async () => {
-      setExchangeRateLoading(true);
       setExchangeRateError(null);
+      dispatch(setCalculatorLoading(true));
       try {
         const rateData = await ExchangeRateService.getUsdToBrlRateWithMetadata();
-        setExchangeRate(rateData.rate);
+        if (rateData.rate !== null) {
+          dispatch(setExchangeRate(rateData.rate));
+        }
         setExchangeRateLastUpdated(rateData.timestamp);
       } catch (error: Error | unknown) {
         console.error("Exchange rate fetch error:", error);
         setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
-        setExchangeRate(null); // Ensure rate is null on error
+        dispatch(setExchangeRate(0)); // Set to 0 instead of null
         setExchangeRateLastUpdated(null);
       } finally {
-        setExchangeRateLoading(false);
+        dispatch(setCalculatorLoading(false));
       }
     };
 
@@ -104,22 +105,24 @@ export default function Home() {
   }, []); 
   
   const fetchExchangeRateForCurrencyPair = async (source: ICurrency, target: ICurrency) => {
-    setExchangeRateLoading(true);
+    dispatch(setCalculatorLoading(true));
     setExchangeRateError(null);
-    setSourceCurrency(source);
-    setTargetCurrency(target);
+    dispatch(setSourceCurrency(source));
+    dispatch(setTargetCurrency(target));
     
     try {
       const rateData = await ExchangeRateService.getExchangeRateForPairWithMetadata(source, target);
-      setExchangeRate(rateData.rate);
+      if (rateData.rate !== null) {
+        dispatch(setExchangeRate(rateData.rate));
+      }
       setExchangeRateLastUpdated(rateData.timestamp);
     } catch (error: Error | unknown) {
       console.error(`Exchange rate fetch error for ${source.code}/${target.code}:`, error);
       setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
-      setExchangeRate(null);
+      dispatch(setExchangeRate(0)); // Set to 0 instead of null
       setExchangeRateLastUpdated(null);
     } finally {
-      setExchangeRateLoading(false);
+      dispatch(setCalculatorLoading(false));
     }
   };
 
@@ -134,6 +137,11 @@ export default function Home() {
     
     setIsLoading(true);
     setError(undefined);
+    if (error) {
+      dispatch(setResultsError(error));
+    } else {
+      dispatch(setResultsError(''));
+    }
     setCalculationMode('simple');
 
     setFormInputs({ 
@@ -166,6 +174,7 @@ export default function Home() {
       }
       
       setError(errorMessage);
+      dispatch(setResultsError(errorMessage));
       setCalculationResult(null);
       setDetailedResult(null);
       scrollToTop(); // Scroll to top to show error
@@ -181,6 +190,11 @@ export default function Home() {
   }) => {
     setIsLoading(true);
     setError(undefined);
+    if (error) {
+      dispatch(setResultsError(error));
+    } else {
+      dispatch(setResultsError(''));
+    }
     setCalculationMode('detailed');
 
     try {
@@ -204,6 +218,7 @@ export default function Home() {
       }
       
       setError(errorMessage);
+      dispatch(setResultsError(errorMessage));
       setCalculationResult(null);
       setDetailedResult(null);
       scrollToTop(); // Scroll to top to show error
@@ -216,11 +231,13 @@ export default function Home() {
     setCalculationResult(null);
     setDetailedResult(null);
     setError(undefined);
+    dispatch(setResultsError(''));
+    dispatch(clearResults());
     setFormInputs(null);
   };
   
   const formatTraditionalResultsAsText = (): string => {
-    if (!calculationResult || !formInputs || exchangeRate === null) return '';
+    if (!calculationResult || !formInputs || exchangeRate === 0) return '';
     
     let text = "Cálculo de Redução de Moeda\n\n";
     
@@ -303,12 +320,8 @@ export default function Home() {
                 onSubmitDetailed={handleDetailedCalculate}
                 onReset={handleReset}
                 isLoading={isLoading}
-                exchangeRate={exchangeRate}
                 exchangeRateLastUpdated={exchangeRateLastUpdated}
-                exchangeRateIsLoading={exchangeRateLoading}
                 exchangeRateError={exchangeRateError}
-                availableCurrencies={availableCurrencies}
-                onCurrencyChange={fetchExchangeRateForCurrencyPair}
               />
             </CardContent>
           </Card>

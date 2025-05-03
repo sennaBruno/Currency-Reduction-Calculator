@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from './ui/button';
 import DetailedStepsInput from './DetailedStepsInput';
 import { ICurrency } from '../domain/currency';
 import { createExampleCalculationSteps } from '../utils/currencyUtils';
 import { InputStep } from '../types/calculator';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setDetailedSteps, clearForm } from '@/store/slices/calculatorSlice';
 
 interface DetailedCalculatorTabProps {
   onSubmit: (data: { 
@@ -15,21 +17,17 @@ interface DetailedCalculatorTabProps {
   }) => void;
   onReset?: () => void;
   isLoading?: boolean;
-  sourceCurrency: ICurrency;
-  targetCurrency: ICurrency;
-  exchangeRate?: number | null;
 }
 
 const DetailedCalculatorTab: React.FC<DetailedCalculatorTabProps> = ({
   onSubmit,
   onReset,
-  isLoading = false,
-  sourceCurrency,
-  targetCurrency,
-  exchangeRate = null
+  isLoading = false
 }) => {
-  const [detailedSteps, setDetailedSteps] = useState<InputStep[]>([]);
-
+  const dispatch = useAppDispatch();
+  const detailedSteps = useAppSelector(state => state.calculator.detailedSteps);
+  const { sourceCurrency, targetCurrency, exchangeRate } = useAppSelector(state => state.currency);
+  
   const handleDetailedSubmit = () => {
     if (detailedSteps.length === 0) {
       alert('Please add at least one calculation step');
@@ -99,7 +97,7 @@ const DetailedCalculatorTab: React.FC<DetailedCalculatorTabProps> = ({
   };
 
   const handleReset = () => {
-    setDetailedSteps([]);
+    dispatch(clearForm());
     if (onReset) {
       onReset();
     }
@@ -112,14 +110,14 @@ const DetailedCalculatorTab: React.FC<DetailedCalculatorTabProps> = ({
       exchangeRate
     );
     
-    setDetailedSteps(exampleSteps);
+    dispatch(setDetailedSteps(exampleSteps));
   };
 
   return (
     <div className="space-y-4">
       <DetailedStepsInput
         steps={detailedSteps}
-        onChange={setDetailedSteps}
+        onChange={(steps) => dispatch(setDetailedSteps(steps))}
         disabled={isLoading}
         sourceCurrency={sourceCurrency}
         targetCurrency={targetCurrency}

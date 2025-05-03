@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/theme-provider";
+import ReduxProvider from "@/components/ReduxProvider";
+import "@/lib/suppressHydrationWarnings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +37,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Layout>{children}</Layout>
+          <ReduxProvider>
+            <Layout>{children}</Layout>
+          </ReduxProvider>
         </ThemeProvider>
       </body>
     </html>

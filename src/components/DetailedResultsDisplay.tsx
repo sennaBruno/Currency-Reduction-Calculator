@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { ICurrency } from '../domain/currency';
 import { formatCurrency } from '../domain/currency/currencyConversion.utils';
+import { useAppSelector } from '@/store/hooks';
 
 interface DetailedCalculationStep {
   step: number;
@@ -44,21 +45,22 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
   sourceCurrency = { code: 'USD', symbol: '$', name: 'US Dollar' },
   targetCurrency = { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' }
 }) => {
-  // If there's an error, display the error message
-  if (error) {
+  const reduxError = useAppSelector(state => state.results.error);
+  const displayError = reduxError || error;
+  
+  if (displayError) {
     return (
       <Card className="border-destructive/20 bg-destructive/10 shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-destructive">Error</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-destructive">{error}</p>
+          <p className="text-destructive">{displayError}</p>
         </CardContent>
       </Card>
     );
   }
 
-  // If no steps to display, show informational message
   if (!steps || steps.length === 0) {
     return (
       <Card className="border-muted bg-muted/20 shadow-sm">
@@ -69,17 +71,13 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
     );
   }
 
-  // Determine which currency to display for each step
   const getCurrencyForStep = (step: DetailedCalculationStep): ICurrency => {
-    // Decide based on the description if it contains conversion or only involves one currency
     if (step.description.toLowerCase().includes('convert')) {
-      // For conversion steps, check if it's the first one to determine source vs target
       return step.result_running_total === step.result_intermediate 
         ? sourceCurrency 
         : targetCurrency;
     }
     
-    // For steps after conversion, use target currency
     const conversionIndex = steps.findIndex(s => 
       s.description.toLowerCase().includes('convert')
     );
