@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { CurrencySelector } from './CurrencySelector';
 import { ExchangeRateDisplay } from './ExchangeRateDisplay';
 import { ICurrency } from '../domain/currency';
 import { ExchangeRate } from '../domain/currency/exchangeRate.type';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { setSourceCurrency, setTargetCurrency, setExchangeRate } from '@/store/slices/currencySlice';
-import { setLoading } from '@/store/slices/calculatorSlice';
-import { ExchangeRateService } from '@/services';
+import { setSourceCurrency, setTargetCurrency } from '@/store/slices/currencySlice';
+import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
+import { fetchExchangeRate } from '@/store/thunks/currencyThunks';
+
+const currencyRegistry = new CurrencyRegistry();
 
 interface CurrencySectionProps {
   exchangeRateLastUpdated?: Date | string | null;
@@ -23,14 +25,52 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const { 
-    sourceCurrency, 
-    targetCurrency, 
+    sourceCurrency: sourceCode, 
+    targetCurrency: targetCode, 
     exchangeRate,
-    availableCurrencies 
+    availableCurrencies: availableCurrencyCodes,
+    isLoading: currencyIsLoading,
+    error: currencyError
   } = useAppSelector((state: any) => state.currency);
-  const calculatorIsLoading = useAppSelector((state: any) => state.calculator.isLoading);
   
-  const isLoading = exchangeRateIsLoading || calculatorIsLoading;
+  const availableCurrencies = useMemo(() => {
+    return availableCurrencyCodes
+      .map((code: string) => currencyRegistry.getCurrencyByCode(code))
+      .filter(Boolean) as ICurrency[];
+  }, [availableCurrencyCodes]);
+
+  const sourceCurrency = useMemo(() => 
+    currencyRegistry.getCurrencyByCode(sourceCode) as ICurrency, 
+    [sourceCode]
+  );
+  
+  const targetCurrency = useMemo(() => 
+    currencyRegistry.getCurrencyByCode(targetCode) as ICurrency, 
+    [targetCode]
+  );
+  
+  const calculatorIsLoading = useAppSelector((state: any) => state.calculator.isLoading);
+  const isLoading = currencyIsLoading || calculatorIsLoading || exchangeRateIsLoading;
+  
+  const fetchExchangeRateForCurrencyPair = useCallback(async (source: ICurrency, target: ICurrency) => {
+    try {
+      await dispatch(fetchExchangeRate({ 
+        source: source.code, 
+        target: target.code 
+      }));
+    } catch (error) {
+      console.error(`Exchange rate fetch error for ${source.code}/${target.code}:`, error);
+    }
+  }, [dispatch]);
+
+  // Fetch exchange rate if not available
+  useEffect(() => {
+    // Only fetch if there's no exchange rate and we're not loading
+    if (exchangeRate === null && !isLoading) {
+      console.log('Fetching initial exchange rate because it was null');
+      fetchExchangeRateForCurrencyPair(sourceCurrency, targetCurrency);
+    }
+  }, [exchangeRate, isLoading, sourceCurrency, targetCurrency, fetchExchangeRateForCurrencyPair]);
 
   const handleSourceCurrencyChange = (currency: ICurrency) => {
     dispatch(setSourceCurrency(currency));
@@ -42,23 +82,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
     fetchExchangeRateForCurrencyPair(sourceCurrency, currency);
   };
   
-  const fetchExchangeRateForCurrencyPair = async (source: ICurrency, target: ICurrency) => {
-    dispatch(setLoading(true));
-    
-    try {
-      const rateData = await ExchangeRateService.getExchangeRateForPairWithMetadata(source, target);
-      if (rateData.rate !== null) {
-        dispatch(setExchangeRate(rateData.rate));
-      }
-    } catch (error) {
-      console.error(`Exchange rate fetch error for ${source.code}/${target.code}:`, error);
-      dispatch(setExchangeRate(0)); 
-    } finally {
-      dispatch(setLoading(false));
-    }
-  };
-
-  const exchangeRateObject: ExchangeRate | undefined = exchangeRate 
+  const exchangeRateObject: ExchangeRate | undefined = exchangeRate !== null
     ? {
         currencyPair: {
           source: sourceCurrency,
@@ -96,7 +120,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
     );
   }
 
-  if (exchangeRateError) {
+  if (currencyError || exchangeRateError) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -116,7 +140,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
         
         <div className="p-4 border border-red-500/50 bg-red-500/10 rounded-md">
           <p className="text-sm text-red-700 dark:text-red-400">
-            <span className="font-semibold">Error:</span> {exchangeRateError}
+            <span className="font-semibold">Error:</span> {currencyError || exchangeRateError}
           </p>
         </div>
       </div>
@@ -140,7 +164,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
         />
       </div>
       
-      {exchangeRate !== null && (
+      {exchangeRate !== null && exchangeRateObject && (
         <ExchangeRateDisplay 
           sourceCurrency={sourceCurrency} 
           targetCurrency={targetCurrency} 

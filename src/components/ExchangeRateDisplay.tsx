@@ -1,23 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ExchangeRate, ICurrency } from '../domain/currency';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, RefreshCcwIcon, InfoIcon } from 'lucide-react';
 import { formatDate, parseUTCString, formatRelativeTime } from '../utils/dateUtils';
+import { useAppSelector } from '@/store/hooks';
 
 interface ExchangeRateDisplayProps {
   sourceCurrency: ICurrency;
   targetCurrency: ICurrency;
   exchangeRate?: ExchangeRate;
   isLoading?: boolean;
-}
-
-interface ExchangeRateMetadata {
-  lastApiUpdateTime: string | null;
-  lastCacheRefreshTime: string;
-  nextCacheRefreshTime: string;
-  fromCache: boolean;
-  time_last_update_utc: string | null;
-  time_next_update_utc: string | null;
 }
 
 /**
@@ -41,8 +33,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
   exchangeRate,
   isLoading = false
 }) => {
-  const [metadata, setMetadata] = useState<ExchangeRateMetadata | null>(null);
-  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+  const { metadata, isLoadingMetadata } = useAppSelector(state => state.currency);
 
   const formatTimestamp = (dateString?: string | Date): string => 
     dateString ? formatDate(dateString, 'MMM d, yyyy') : '';
@@ -54,27 +45,6 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
     if (!utcString) return '';
     const date = parseUTCString(utcString);
     return date ? formatRelativeTime(date) : '';
-  };
-
-  useEffect(() => {
-    if (exchangeRate) {
-      fetchMetadata();
-    }
-  }, [exchangeRate]);
-
-  const fetchMetadata = async () => {
-    try {
-      setIsMetadataLoading(true);
-      const response = await fetch('/api/exchange-rate-metadata');
-      if (response.ok) {
-        const data = await response.json();
-        setMetadata(data);
-      }
-    } catch (error) {
-      console.error('Error fetching exchange rate metadata:', error);
-    } finally {
-      setIsMetadataLoading(false);
-    }
   };
 
   // Loading state
@@ -100,9 +70,8 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
     );
   }
 
-  // Render timestamp section based on loading state and available data
   const renderTimestampSection = () => {
-    if (isMetadataLoading) {
+    if (isLoadingMetadata) {
       return (
         <span className="flex items-center">
           <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
