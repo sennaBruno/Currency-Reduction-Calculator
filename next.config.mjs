@@ -9,10 +9,12 @@ const nextConfig = {
     // This specifically helps with password manager injected attributes
     styledComponents: true,
     // Suppress certain attribute warnings during hydration
+    /*
     ignoreDuringMinification: [
       'data-dashlane-rid',
       'data-dashlane-label',
     ],
+    */
   },
   
   // General experimental features
