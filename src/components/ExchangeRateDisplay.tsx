@@ -1,7 +1,7 @@
 import React from 'react';
 import { ExchangeRate, ICurrency } from '../domain/currency';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, RefreshCcwIcon, InfoIcon } from 'lucide-react';
+import { CalendarIcon, RefreshCcwIcon } from 'lucide-react';
 import { formatDate, parseUTCString, formatRelativeTime } from '../utils/dateUtils';
 import { useAppSelector } from '@/store/hooks';
 
