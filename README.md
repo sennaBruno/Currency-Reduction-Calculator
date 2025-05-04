@@ -43,9 +43,9 @@ The application will be available at `http://localhost:3000` (or the next availa
 
 The application exposes the following API endpoints:
 
--   `GET /api/exchange-rate`: Fetches the latest exchange rate (specific currencies might depend on implementation).
+-   `GET /api/exchange-rate`: Fetches the latest exchange rate 
 -   `GET /api/exchange-rates?from=EUR&to=BRL`: Fetches the exchange rate between specified `from` and `to` currencies.
--   `GET /api/exchange-rate-metadata`: Provides metadata related to the exchange rates (e.g., available currencies, last updated time - exact details may vary).
+-   `GET /api/exchange-rate-metadata`: Provides metadata related to the exchange rates 
 
 ## Technology Stack
 
