@@ -153,17 +153,26 @@ export function useCalculator(exchangeRate: number | null) {
   };
   
   const formatTraditionalResultsAsText = (): string => {
-    if (!calculationResult || !formInputs || exchangeRate === null || exchangeRate === 0) return '';
+    if (!calculationResult && !formInputs && exchangeRate === null && exchangeRate === 0) return '';
     
     let text = "Cálculo de Redução de Moeda\n\n";
     
     text += "== Entradas ==\n";
-    text += `Valor Inicial (USD): ${formatCurrencyForText(formInputs.initialAmountUSD, 'USD')}\n`;
-    text += `Taxa de Câmbio (BRL/USD): ${exchangeRate.toFixed(4)}\n`;
-    text += `Reduções (%): ${formInputs.reductions}\n\n`;
+    text += `Valor Inicial (USD): ${formatCurrencyForText(formInputs?.initialAmountUSD || 0, 'USD')}\n`;
+    text += `Taxa de Câmbio (BRL/USD): ${exchangeRate?.toFixed(4) || 0}\n`;
+    text += `Reduções (%): ${formInputs?.reductions || 'Nenhuma'}\n\n`;
+    
+    const initialBRLAmount = calculationResult?.initialBRLNoReduction || 0;
+    text += "== Resultado (BRL) ==\n";
+    text += `Valor Inicial (BRL): ${formatCurrencyForText(initialBRLAmount, 'BRL')}\n\n`;
+    
+    if (!calculationResult?.steps || calculationResult.steps.length === 0) {
+      text += "Nenhuma redução aplicada.\n\n";
+      text += `Valor Final (BRL): ${formatCurrencyForText(initialBRLAmount, 'BRL')}\n`;
+      return text;
+    }
     
     text += "== Resultado Passo a Passo (BRL) ==\n";
-    text += `Valor Inicial (BRL): ${formatCurrencyForText(calculationResult.initialBRLNoReduction, 'BRL')}\n\n`;
     
     calculationResult.steps.forEach(step => {
       text += `--- Passo ${step.step} (${step.reductionPercentage?.toFixed(2)}%) ---\n`;

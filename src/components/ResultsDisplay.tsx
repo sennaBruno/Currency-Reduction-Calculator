@@ -73,9 +73,40 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   if (!steps || steps.length === 0) {
     return (
-      <Card className="border-muted bg-muted/20 shadow-sm">
-        <CardContent className="py-8">
-          <p className="text-muted-foreground text-center">Enter values and click Calculate to see results.</p>
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle>Calculation Results</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Initial Currency Conversion */}
+          <Card className="mb-4 bg-primary/10 border-primary/20">
+            <CardContent className="py-3">
+              <p className="font-medium">
+                Initial {targetCurrency.code} amount: {formatCurrency(initialBRLNoReduction, targetCurrency)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-4 bg-accent/10 border-accent/20">
+            <CardContent className="py-3">
+              <p className="font-medium">
+                Final amount (no reductions applied): {formatCurrency(initialBRLNoReduction, targetCurrency)}
+              </p>
+            </CardContent>
+          </Card>
+          
+          {/* Download button */}
+          <div className="mt-4 flex justify-end">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 w-full sm:w-auto" 
+              onClick={onDownload}
+              disabled={!onDownload}
+            >
+              <Download size={16} />
+              Download Result (.txt)
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );

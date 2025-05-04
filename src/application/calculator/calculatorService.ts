@@ -162,7 +162,7 @@ export class CalculatorService implements ICalculatorService {
     final_result: number;
   }> {
     // Validate input
-    if (!initialAmount || !exchangeRate || !reductions) {
+    if (!initialAmount || !exchangeRate) {
       throw new Error("Missing required fields");
     }
     
@@ -172,7 +172,7 @@ export class CalculatorService implements ICalculatorService {
     }
     
     // Parse and validate reductions
-    const reductionPercentages = reductions
+    const reductionPercentages = !reductions ? [] : reductions
       .split(',')
       .map(percentage => percentage.trim())
       .filter(percentage => percentage.length > 0)
@@ -196,6 +196,15 @@ export class CalculatorService implements ICalculatorService {
     let currentBalance = initialTargetAmount;
     
     try {
+      // If no reductions, return the direct conversion result
+      if (reductionPercentages.length === 0) {
+        return {
+          steps: [],
+          initialBRLNoReduction: initialTargetAmount,
+          final_result: initialTargetAmount
+        };
+      }
+      
       // Calculate each reduction step
       for (let i = 0; i < reductionPercentages.length; i++) {
         const reductionPercentage = reductionPercentages[i];

@@ -111,7 +111,9 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
   return (
     <form onSubmit={traditionalForm.handleSubmit(handleTraditionalSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="initialAmount">Initial Amount ({sourceCurrencyObj.code})</Label>
+        <Label htmlFor="initialAmount">
+          Initial Amount ({sourceCurrencyObj.code}) <span className="text-red-500">*</span>
+        </Label>
         <Input
           id="initialAmount"
           type="number"
@@ -128,7 +130,9 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
       
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <Label htmlFor="exchangeRate">Exchange Rate ({sourceCurrencyObj.code} to {targetCurrencyObj.code})</Label>
+          <Label htmlFor="exchangeRate">
+            Exchange Rate ({sourceCurrencyObj.code} to {targetCurrencyObj.code}) <span className="text-red-500">*</span>
+          </Label>
           <div className="flex items-center space-x-2 mt-1 sm:mt-0">
             <Checkbox 
               id="useAutoRate" 
@@ -159,10 +163,12 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="reductions">Reductions (%) - comma separated</Label>
+        <Label htmlFor="reductions">
+          Reductions (%) - comma separated
+        </Label>
         <Input
           id="reductions"
-          placeholder="e.g. 8.5, 10"
+          placeholder="e.g. 8.5, 10 (optional)"
           {...traditionalForm.register('reductions')}
         />
         {traditionalForm.formState.errors.reductions && (
@@ -171,7 +177,7 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          Enter percentage reductions separated by commas (e.g. &quot;5.5, 2.3&quot;)
+          Enter percentage reductions separated by commas (e.g. &quot;5.5, 2.3&quot;) or leave empty for no reductions
         </p>
       </div>
       

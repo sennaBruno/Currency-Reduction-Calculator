@@ -58,7 +58,6 @@ export async function POST(request: Request) {
     // Handle both old and new request formats
     try {
       if (body.steps && body.steps.length > 0) {
-        // New format with detailed steps
 
         // Validate step count
         if (body.steps.length > MAX_STEPS) {
@@ -128,7 +127,6 @@ export async function POST(request: Request) {
         }
         
         // Check for logical calculation errors before processing
-        // For example, an exchange_rate step must come after an initial step
         const initialIndex = body.steps.findIndex(step => step.type === 'initial');
         const hasExchangeRateBeforeInitial = body.steps.some((step, index) => 
           step.type === 'exchange_rate' && index < initialIndex
@@ -167,10 +165,8 @@ export async function POST(request: Request) {
         }
       } else if (
         (body.initialAmountUSD !== undefined || body.initialAmount !== undefined) && 
-        body.exchangeRate && 
-        body.reductions
+        body.exchangeRate
       ) {
-        // Old format with simple reductions
         const initialAmount = body.initialAmount !== undefined 
           ? body.initialAmount 
           : body.initialAmountUSD;
@@ -197,40 +193,43 @@ export async function POST(request: Request) {
           );
         }
         
-        if (body.reductions.length > MAX_STRING_LENGTH) {
-          return NextResponse.json(
-            { error: "Reductions string too long" },
-            { status: 400 }
-          );
-        }
-        
-        // Validate reductions format and count
-        const reductionsArray = body.reductions.split(',')
-          .map(r => r.trim())
-          .filter(r => r !== '');
-        
-        if (reductionsArray.length > MAX_REDUCTIONS) {
-          return NextResponse.json(
-            { error: `Too many reductions. Maximum allowed: ${MAX_REDUCTIONS}` },
-            { status: 400 }
-          );
-        }
-        
-        // Validate each reduction percentage
-        for (const reduction of reductionsArray) {
-          const value = Number(reduction);
-          if (isNaN(value) || value < 0 || value > 100) {
+        // Only validate reductions if they're provided
+        if (body.reductions) {
+          if (body.reductions.length > MAX_STRING_LENGTH) {
             return NextResponse.json(
-              { error: "Invalid reduction percentage. Must be between 0 and 100" },
+              { error: "Reductions string too long" },
               { status: 400 }
             );
+          }
+          
+          // Validate reductions format and count
+          const reductionsArray = body.reductions.split(',')
+            .map(r => r.trim())
+            .filter(r => r !== '');
+          
+          if (reductionsArray.length > MAX_REDUCTIONS) {
+            return NextResponse.json(
+              { error: `Too many reductions. Maximum allowed: ${MAX_REDUCTIONS}` },
+              { status: 400 }
+            );
+          }
+          
+          // Validate each reduction percentage
+          for (const reduction of reductionsArray) {
+            const value = Number(reduction);
+            if (isNaN(value) || value < 0 || value > 100) {
+              return NextResponse.json(
+                { error: "Invalid reduction percentage. Must be between 0 and 100" },
+                { status: 400 }
+              );
+            }
           }
         }
         
         const result = await calculatorService.processSimpleCalculation(
           initialAmount,
           body.exchangeRate,
-          body.reductions,
+          body.reductions || '',
           sourceCurrency,
           targetCurrency
         );
