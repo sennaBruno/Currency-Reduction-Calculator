@@ -12,7 +12,6 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { 
-  ExchangeRateService, 
   CalculatorService,
   DetailedCalculationResult, 
   SimpleCalculationResult,
@@ -21,9 +20,9 @@ import { CurrencyRegistry } from '@/application/currency/currencyRegistry.servic
 import { ICurrency } from '@/domain/currency/currency.interface';
 import { formatCurrencyForText } from '../domain/currency/currencyConversion.utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setSourceCurrency, setTargetCurrency, setExchangeRate, addCurrency } from '@/store/slices/currencySlice';
-import { setLoading as setCalculatorLoading } from '@/store/slices/calculatorSlice';
-import { setTraditionalResult, setDetailedResults, setError as setResultsError, clearResults } from '@/store/slices/resultsSlice';
+import { setSourceCurrency, setTargetCurrency, addCurrency } from '@/store/slices/currencySlice';
+import {  setError as setResultsError, clearResults } from '@/store/slices/resultsSlice';
+import { fetchExchangeRate } from '@/store/thunks/currencyThunks';
 
 // API error response interface
 interface ApiErrorResponse {
@@ -54,7 +53,6 @@ export default function Home() {
   const [formInputs, setFormInputs] = useState<FormInputs | null>(null);
   const [calculationMode, setCalculationMode] = useState<'simple' | 'detailed'>('simple');
 
-  // State for exchange rate updates
   const [exchangeRateLastUpdated, setExchangeRateLastUpdated] = useState<Date | null>(null);
   const [exchangeRateError, setExchangeRateError] = useState<string | null>(null);
 
@@ -66,7 +64,6 @@ export default function Home() {
     });
   };
 
-  // Fetch currencies and exchange rate on mount
   useEffect(() => {
     const currencyRegistry = new CurrencyRegistry();
     const currencies = currencyRegistry.getAllCurrencies();
@@ -75,57 +72,35 @@ export default function Home() {
       dispatch(addCurrency(currency));
     });
     
-    // Set default currencies
     const defaultSourceCurrency = currencies.find(c => c.code === 'USD') || currencies[0];
     const defaultTargetCurrency = currencies.find(c => c.code === 'BRL') || currencies[1];
     
-    dispatch(setSourceCurrency(defaultSourceCurrency));
-    dispatch(setTargetCurrency(defaultTargetCurrency));
+    if (defaultSourceCurrency && defaultTargetCurrency) {
+      dispatch(setSourceCurrency(defaultSourceCurrency));
+      dispatch(setTargetCurrency(defaultTargetCurrency));
 
-    const fetchRate = async () => {
-      setExchangeRateError(null);
-      dispatch(setCalculatorLoading(true));
-      try {
-        const rateData = await ExchangeRateService.getUsdToBrlRateWithMetadata();
-        if (rateData.rate !== null) {
-          dispatch(setExchangeRate(rateData.rate));
-        }
-        setExchangeRateLastUpdated(rateData.timestamp);
-      } catch (error: Error | unknown) {
-        console.error("Exchange rate fetch error:", error);
-        setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
-        dispatch(setExchangeRate(0)); // Set to 0 instead of null
-        setExchangeRateLastUpdated(null);
-      } finally {
-        dispatch(setCalculatorLoading(false));
-      }
-    };
+      dispatch(fetchExchangeRate({ 
+        source: defaultSourceCurrency.code, 
+        target: defaultTargetCurrency.code 
+      }))
+        .unwrap() 
+        .then((rate) => {
+          console.log('Initial exchange rate fetched successfully:', rate);
+          setExchangeRateError(null); 
+          setExchangeRateLastUpdated(new Date());
+        })
+        .catch((error) => {
+          console.error("Initial exchange rate fetch error:", error);
+          setExchangeRateError(error?.message || 'Failed to fetch initial rate'); 
+          setExchangeRateLastUpdated(null);
+        });
 
-    fetchRate();
-  }, []); 
-  
-  const fetchExchangeRateForCurrencyPair = async (source: ICurrency, target: ICurrency) => {
-    dispatch(setCalculatorLoading(true));
-    setExchangeRateError(null);
-    dispatch(setSourceCurrency(source));
-    dispatch(setTargetCurrency(target));
-    
-    try {
-      const rateData = await ExchangeRateService.getExchangeRateForPairWithMetadata(source, target);
-      if (rateData.rate !== null) {
-        dispatch(setExchangeRate(rateData.rate));
-      }
-      setExchangeRateLastUpdated(rateData.timestamp);
-    } catch (error: Error | unknown) {
-      console.error(`Exchange rate fetch error for ${source.code}/${target.code}:`, error);
-      setExchangeRateError(error instanceof Error ? error.message : 'Unknown error occurred');
-      dispatch(setExchangeRate(0)); // Set to 0 instead of null
-      setExchangeRateLastUpdated(null);
-    } finally {
-      dispatch(setCalculatorLoading(false));
+    } else {
+      console.error("Could not find default currencies (USD/BRL).");
+      setExchangeRateError("Default currencies not found.");
     }
-  };
-
+  }, [dispatch]); 
+  
   const handleTraditionalCalculate = async (data: { 
     initialAmount: number;
     exchangeRate: number;
@@ -237,7 +212,7 @@ export default function Home() {
   };
   
   const formatTraditionalResultsAsText = (): string => {
-    if (!calculationResult || !formInputs || exchangeRate === 0) return '';
+    if (!calculationResult || !formInputs || exchangeRate === null || exchangeRate === 0) return '';
     
     let text = "Cálculo de Redução de Moeda\n\n";
     

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { ExchangeRateService } from '../../../../../application/currency/exchangeRate.service';
 import { ExchangeRateRepository } from '../../../../../infrastructure/exchange-rate/exchangeRateRepository';
 import { CurrencyRegistry } from '../../../../../application/currency/currencyRegistry.service';
@@ -17,15 +17,16 @@ const currencyRegistry = new CurrencyRegistry();
 
 /**
  * GET handler for the /api/exchange-rate/[source]/[target] endpoint
- * Returns exchange rate between specific currencies with metadata
+ * Returns the exchange rate for a specific currency pair
  */
 export async function GET(
-  request: Request,
-  { params }: { params: { source: string; target: string } }
+  context: { params: { source: string; target: string } }
 ) {
+  const params = await context.params;
+  const source = await params.source;
+  const target = await params.target;
+  
   try {
-    const { source, target } = params;
-    
     const sourceCurrency = currencyRegistry.getCurrencyByCode(source);
     const targetCurrency = currencyRegistry.getCurrencyByCode(target);
     
@@ -36,38 +37,34 @@ export async function GET(
       );
     }
     
-    // Fetch the exchange rate
     const result = await exchangeRateService.getExchangeRate(sourceCurrency, targetCurrency);
     
-    // Get metadata for the exchange rate
-    const metadata = await exchangeRateService.getExchangeRateMetadata();
-    
-    // Format and return the response with both rate and metadata
     const response = {
       rate: result.rate,
       timestamp: result.timestamp ? formatDateISO(result.timestamp) : null,
-      lastCacheRefreshTime: formatDateISO(metadata.lastCacheRefreshTime),
-      lastApiUpdateTime: metadata.lastApiUpdateTime ? formatDateISO(metadata.lastApiUpdateTime) : null,
-      nextCacheRefreshTime: formatDateISO(metadata.nextCacheRefreshTime),
-      fromCache: metadata.fromCache,
-      time_last_update_utc: metadata.time_last_update_utc,
-      time_next_update_utc: metadata.time_next_update_utc
+      lastCacheRefreshTime: result.lastCacheRefreshTime ? formatDateISO(result.lastCacheRefreshTime) : null,
+      lastApiUpdateTime: result.lastApiUpdateTime ? formatDateISO(result.lastApiUpdateTime) : null,
+      nextCacheRefreshTime: result.nextCacheRefreshTime ? formatDateISO(result.nextCacheRefreshTime) : null,
+      fromCache: result.fromCache,
+      time_last_update_utc: result.time_last_update_utc,
+      time_next_update_utc: result.time_next_update_utc
     };
-    
+
     return NextResponse.json(response, { 
       status: 200,
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=60'
       }
     });
+    
   } catch (error) {
-    console.error(`Error fetching rate for ${params.source} to ${params.target}:`, error);
+    console.error(`Error fetching rate for ${source} to ${target}:`, error);
     return NextResponse.json(
-      { error: `Failed to fetch exchange rate for ${params.source} to ${params.target}` },
+      { error: `Failed to fetch exchange rate for ${source} to ${target}` },
       { status: 500 }
     );
   }
 }
 
-// Ensure this route is dynamically rendered
 export const dynamic = 'force-dynamic'; 
+export const revalidate = 600; 

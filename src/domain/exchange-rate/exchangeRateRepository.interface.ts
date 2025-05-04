@@ -10,6 +10,7 @@ export interface CacheConfig {
 
 /**
  * Metadata about the exchange rate data and cache status
+ * Note: This type is kept for reference but the fields are now included directly in ExchangeRate
  */
 export interface ExchangeRateMetadata {
   /** Timestamp of the last successful data fetch and cache update */
@@ -41,14 +42,14 @@ export interface IExchangeRateRepository {
    * Retrieves the current exchange rate between two currencies
    * @param fromCurrency The source currency
    * @param toCurrency The target currency
-   * @returns Promise resolving to the exchange rate object
+   * @returns Promise resolving to the exchange rate object with metadata
    * @throws Error if the rate cannot be retrieved
    */
   getExchangeRate(fromCurrency: ICurrency, toCurrency: ICurrency): Promise<ExchangeRate>;
   
   /**
    * Retrieves all available exchange rates
-   * @returns Promise resolving to an array of exchange rates
+   * @returns Promise resolving to an array of exchange rates with metadata
    * @throws Error if the rates cannot be retrieved
    */
   getAllRates(): Promise<ExchangeRate[]>;
@@ -58,10 +59,4 @@ export interface IExchangeRateRepository {
    * @returns The cache configuration object
    */
   getCacheConfig(): CacheConfig;
-  
-  /**
-   * Gets metadata about the exchange rate data and cache status
-   * @returns Exchange rate metadata object
-   */
-  getExchangeRateMetadata(): ExchangeRateMetadata;
 } 

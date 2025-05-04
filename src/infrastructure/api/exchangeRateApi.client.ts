@@ -1,10 +1,11 @@
 import { ICurrency } from '../../domain/currency/currency.interface';
 import { ExchangeRate } from '../../domain/currency/exchangeRate.type';
-import { IExchangeRateRepository, CacheConfig, ExchangeRateMetadata } from '../../domain/exchange-rate/exchangeRateRepository.interface';
+import { IExchangeRateRepository, CacheConfig } from '../../domain/exchange-rate/exchangeRateRepository.interface';
 import { CurrencyRegistry } from '../../application/currency/currencyRegistry.service';
 import { ErrorFactory, logError } from '../../utils/errorHandling';
 import { IExchangeRateApiClient } from './exchangeRateApiClient.interface';
 import { ThrottledApiClient, withRetry } from '../../utils/api-helpers';
+import { addSecondsToDate } from '../../utils/dateUtils';
 
 interface ExchangeRateApiResponse {
   result: string;
@@ -43,20 +44,22 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
   private lastApiUpdateTime: Date | null = null;
   private time_last_update_utc: string | null = null;
   private time_next_update_utc: string | null = null;
+  private readonly CACHE_TTL_SECONDS: number = 3600; // 1 hour default
   
   constructor() {
-    // Use environment variable or fallback to default key (for development only)
     this.API_KEY = process.env.EXCHANGE_RATE_API_KEY || '';
     this.API_BASE_URL = process.env.EXCHANGE_RATE_API_URL || '';
     this.currencyRegistry = new CurrencyRegistry();
     
-    // Initialize the throttled API client with configurable rate limit
     const requestsPerSecond = process.env.EXCHANGE_RATE_API_RATE_LIMIT 
       ? parseFloat(process.env.EXCHANGE_RATE_API_RATE_LIMIT) 
       : 2;
     this.throttledClient = new ThrottledApiClient(requestsPerSecond);
+
+    this.CACHE_TTL_SECONDS = process.env.EXCHANGE_RATE_CACHE_TTL 
+      ? parseInt(process.env.EXCHANGE_RATE_CACHE_TTL, 10) 
+      : 3600;
     
-    // Log warning if using default key
     if (!process.env.EXCHANGE_RATE_API_KEY) {
       console.warn('Warning: Using default Exchange Rate API key. Set EXCHANGE_RATE_API_KEY environment variable for production.');
     }
@@ -83,13 +86,11 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
         const rate = await this.getExchangeRate(usdCurrency, brlCurrency);
         return rate.rate;
       } catch (error) {
-        // Log detailed error with context
         logError(error, { 
           method: 'getUsdToBrlRate',
           service: 'ExchangeRateApiClient'
         });
         
-        // Rethrow as a standardized application error
         if (error instanceof Error) {
           throw ErrorFactory.createConversionError(
             'Failed to retrieve USD to BRL exchange rate',
@@ -117,7 +118,6 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
   async getExchangeRate(fromCurrency: ICurrency, toCurrency: ICurrency): Promise<ExchangeRate> {
     return withRetry(async () => {
       try {
-        // Validate input currencies
         if (!fromCurrency?.code || !toCurrency?.code) {
           throw ErrorFactory.createValidationError(
             'Invalid currency objects provided',
@@ -125,9 +125,7 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
           );
         }
         
-        // Use the throttled client for rate limited API calls
         return await this.throttledClient.request(async () => {
-          // Use the pair endpoint for more efficient API calls
           const response = await fetch(
             `${this.API_BASE_URL}/${this.API_KEY}/pair/${fromCurrency.code}/${toCurrency.code}`
           );
@@ -164,6 +162,7 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
           this.lastApiUpdateTime = apiUpdateTime;
           this.time_last_update_utc = data.time_last_update_utc || null;
           this.time_next_update_utc = data.time_next_update_utc || null;
+          const nextCacheRefreshTime = addSecondsToDate(this.lastCacheRefreshTime, this.CACHE_TTL_SECONDS);
           
           return {
             currencyPair: {
@@ -171,11 +170,16 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
               target: toCurrency
             },
             rate: data.conversion_rate,
-            timestamp: apiUpdateTime
+            timestamp: apiUpdateTime,
+            fromCache: false,
+            lastApiUpdateTime: this.lastApiUpdateTime,
+            lastCacheRefreshTime: this.lastCacheRefreshTime,
+            nextCacheRefreshTime: nextCacheRefreshTime,
+            time_last_update_utc: this.time_last_update_utc,
+            time_next_update_utc: this.time_next_update_utc
           };
         });
       } catch (error) {
-        // Log detailed error with context
         logError(error, { 
           method: 'getExchangeRate',
           service: 'ExchangeRateApiClient',
@@ -183,7 +187,6 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
           toCurrency: toCurrency.code
         });
         
-        // Rethrow as a standardized application error
         throw ErrorFactory.createConversionError(
           `Failed to retrieve ${fromCurrency.code} to ${toCurrency.code} exchange rate`,
           error,
@@ -206,10 +209,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
   async getAllRates(baseCurrency?: ICurrency): Promise<ExchangeRate[]> {
     return withRetry(async () => {
       try {
-        // Use USD as default base currency if none is provided
         const baseCode = baseCurrency?.code || 'USD';
         
-        // Make a single API call to get all rates for the base currency
         const response = await fetch(`${this.API_BASE_URL}/${this.API_KEY}/latest/${baseCode}`);
         
         if (!response.ok) {
@@ -238,8 +239,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
         this.lastApiUpdateTime = apiUpdateTime;
         this.time_last_update_utc = data.time_last_update_utc || null;
         this.time_next_update_utc = data.time_next_update_utc || null;
+        const nextCacheRefreshTime = addSecondsToDate(this.lastCacheRefreshTime, this.CACHE_TTL_SECONDS);
         
-        // Get all currencies from the registry
         const availableCurrencies = this.currencyRegistry.getAllCurrencies();
         const baseCurrencyObj = baseCurrency || this.currencyRegistry.getCurrencyByCode(baseCode);
         
@@ -252,12 +253,9 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
           );
         }
         
-        // Create exchange rate objects for each currency pair
         for (const targetCode of Object.keys(data.conversion_rates)) {
-          // Skip self-conversion
           if (baseCode === targetCode) continue;
           
-          // Get the target currency from the registry
           const targetCurrency = availableCurrencies.find(c => c.code === targetCode);
           if (!targetCurrency) continue;
           
@@ -267,20 +265,24 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
               target: targetCurrency
             },
             rate: data.conversion_rates[targetCode],
-            timestamp: apiUpdateTime
+            timestamp: apiUpdateTime,
+            fromCache: false,
+            lastApiUpdateTime: this.lastApiUpdateTime,
+            lastCacheRefreshTime: this.lastCacheRefreshTime,
+            nextCacheRefreshTime: nextCacheRefreshTime,
+            time_last_update_utc: this.time_last_update_utc,
+            time_next_update_utc: this.time_next_update_utc
           });
         }
         
         return exchangeRates;
       } catch (error) {
-        // Log the overall error
         logError(error, { 
           method: 'getAllRates', 
           service: 'ExchangeRateApiClient',
           baseCurrency: baseCurrency?.code || 'USD'
         });
         
-        // Rethrow as a standardized application error
         throw ErrorFactory.createApiError(
           'Failed to retrieve exchange rates',
           error,
@@ -297,7 +299,6 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
    */
   async getSupportedCurrencies(): Promise<string[]> {
     try {
-      // Just return the codes from the currencies in the registry
       const currencies = this.currencyRegistry.getAllCurrencies();
       return currencies.map(c => c.code);
     } catch (error) {
@@ -318,24 +319,8 @@ export class ExchangeRateApiClient implements IExchangeRateApiClient, IExchangeR
    * @returns Cache configuration object
    */
   getCacheConfig(): CacheConfig {
-    // Return a standard cache configuration
     return {
-      revalidateSeconds: 3600 // 1 hour default
-    };
-  }
-  
-  /**
-   * Gets metadata about the exchange rate data and cache status
-   * @returns Exchange rate metadata object
-   */
-  getExchangeRateMetadata(): ExchangeRateMetadata {
-    return {
-      lastCacheRefreshTime: this.lastCacheRefreshTime,
-      lastApiUpdateTime: this.lastApiUpdateTime,
-      nextCacheRefreshTime: new Date(this.lastCacheRefreshTime.getTime() + (3600 * 1000)), // 1 hour from now
-      fromCache: false, 
-      time_last_update_utc: this.time_last_update_utc,
-      time_next_update_utc: this.time_next_update_utc
+      revalidateSeconds: this.CACHE_TTL_SECONDS
     };
   }
 } 

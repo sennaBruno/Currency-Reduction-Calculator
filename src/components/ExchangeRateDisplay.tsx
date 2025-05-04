@@ -12,9 +12,6 @@ interface ExchangeRateDisplayProps {
   isLoading?: boolean;
 }
 
-/**
- * Info tooltip component for better reusability
- */
 const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
   <span className="inline-flex items-center ml-1 group relative">
     <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
@@ -33,7 +30,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
   exchangeRate,
   isLoading = false
 }) => {
-  const { metadata, isLoadingMetadata } = useAppSelector(state => state.currency);
+  const { metadata } = useAppSelector(state => state.currency);
 
   const formatTimestamp = (dateString?: string | Date): string => 
     dateString ? formatDate(dateString, 'MMM d, yyyy') : '';
@@ -71,7 +68,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
   }
 
   const renderTimestampSection = () => {
-    if (isLoadingMetadata) {
+    if (isLoading) {
       return (
         <span className="flex items-center">
           <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
@@ -101,10 +98,15 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
       );
     }
     
-    return (
+    return exchangeRate?.timestamp ? (
       <span className="flex items-center">
         Updated: {formatTimestamp(exchangeRate.timestamp)}
-        <InfoTooltip text="Using fallback timestamp from rate data." />
+        <InfoTooltip text="This timestamp is from our local cache." />
+      </span>
+    ) : (
+      <span className="flex items-center">
+        <RefreshCcwIcon className="h-3 w-3 mr-1" />
+        No update information available
       </span>
     );
   };
@@ -124,7 +126,7 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
         </div>
         
         <div className="exchange-rate-value text-xl font-semibold">
-          1 {sourceCurrency.symbol} = {exchangeRate.rate.toFixed(4)} {targetCurrency.symbol}
+          1 {sourceCurrency.symbol} = {exchangeRate.rate?.toFixed(4) || '0.0000'} {targetCurrency.symbol}
         </div>
         
         <div className="exchange-rate-timestamp flex items-center text-xs text-muted-foreground mt-2">

@@ -96,7 +96,7 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     console.log(`ExchangeRateRepository initialized with cache TTL: ${this.cacheDuration}s`);
 
     this.lastCacheRefreshTime = nowUTC();
-    this.lastApiUpdateTime = nowUTC();
+    this.lastApiUpdateTime = null;
     this.time_last_update_utc = null;
     this.time_next_update_utc = null;
   }
@@ -144,6 +144,19 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       
       this.time_last_update_utc = data.time_last_update_utc || null;
       this.time_next_update_utc = data.time_next_update_utc || null;
+      
+      console.log('API response metadata:', {
+        time_last_update_utc: this.time_last_update_utc,
+        time_next_update_utc: this.time_next_update_utc,
+        data: JSON.stringify({
+          result: data.result,
+          time_last_update_unix: data.time_last_update_unix,
+          time_last_update_utc: data.time_last_update_utc,
+          time_next_update_unix: data.time_next_update_unix,
+          time_next_update_utc: data.time_next_update_utc
+        })
+      });
+      
       this.fromCache = false;
       
       return data;
@@ -199,6 +212,8 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       );
 
       const apiUpdateTime = this.lastApiUpdateTime || nowUTC();
+      const safeLastCacheTime = this.lastCacheRefreshTime || nowUTC();
+      const nextCacheRefreshTime = addSecondsToDate(safeLastCacheTime, this.cacheDuration);
 
       return {
         currencyPair: {
@@ -206,15 +221,29 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
           target: toCurrency
         },
         rate: data.conversion_rate,
-        timestamp: apiUpdateTime
+        timestamp: apiUpdateTime,
+        fromCache: this.fromCache,
+        lastApiUpdateTime: this.lastApiUpdateTime,
+        lastCacheRefreshTime: safeLastCacheTime,
+        nextCacheRefreshTime: nextCacheRefreshTime,
+        time_last_update_utc: this.time_last_update_utc,
+        time_next_update_utc: this.time_next_update_utc
       };
     };
 
     const cacheKey = `${this.cacheTag}-${fromCurrency.code}-${toCurrency.code}`;
-    return unstable_cache(fetchFreshData, [cacheKey], {
+    const result = await unstable_cache(fetchFreshData, [cacheKey], {
       revalidate: this.cacheDuration,
       tags: [this.cacheTag, cacheKey],
     })();
+    
+    if (this.lastCacheRefreshTime && result.timestamp) {
+      if (this.lastCacheRefreshTime.getTime() > result.timestamp.getTime()) {
+        result.fromCache = true;
+      }
+    }
+    
+    return result;
   }
 
   /**
@@ -232,6 +261,9 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       );
 
       const apiUpdateTime = this.lastApiUpdateTime || nowUTC();
+      const safeLastCacheTime = this.lastCacheRefreshTime || nowUTC();
+      const nextCacheRefreshTime = addSecondsToDate(safeLastCacheTime, this.cacheDuration);
+      
       const exchangeRates: ExchangeRate[] = [];
       const availableCurrencies = this.currencyRegistry.getAllCurrencies();
       const baseCurrencyObj = this.currencyRegistry.getCurrencyByCode(baseCode);
@@ -252,7 +284,13 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
             target: targetCurrency
           },
           rate: data.conversion_rates[targetCode],
-          timestamp: apiUpdateTime
+          timestamp: apiUpdateTime,
+          fromCache: this.fromCache,
+          lastApiUpdateTime: this.lastApiUpdateTime,
+          lastCacheRefreshTime: safeLastCacheTime,
+          nextCacheRefreshTime: nextCacheRefreshTime,
+          time_last_update_utc: this.time_last_update_utc,
+          time_next_update_utc: this.time_next_update_utc
         });
       }
       
@@ -260,10 +298,21 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     };
     
     const cacheKey = `${this.cacheTag}-all-rates-usd`;
-    return unstable_cache(fetchFreshData, [cacheKey], {
+    const results = await unstable_cache(fetchFreshData, [cacheKey], {
       revalidate: this.cacheDuration,
       tags: [this.cacheTag, cacheKey],
     })();
+    
+    // Update fromCache flag for cached results
+    if (this.lastCacheRefreshTime) {
+      for (const rate of results) {
+        if (rate.timestamp && this.lastCacheRefreshTime.getTime() > rate.timestamp.getTime()) {
+          rate.fromCache = true;
+        }
+      }
+    }
+    
+    return results;
   }
   
   /**
@@ -283,10 +332,14 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
   getExchangeRateMetadata(): ExchangeRateMetadataInterface {
     const safeLastCacheTime = this.lastCacheRefreshTime || nowUTC();
     
+    // Calculate nextCacheRefreshTime based on lastCacheRefreshTime and cacheDuration
+    const nextCacheRefreshTime = addSecondsToDate(safeLastCacheTime, this.cacheDuration);
+    
+    // Use the actual values from the API without creating fake ones
     return {
       lastCacheRefreshTime: safeLastCacheTime,
-      lastApiUpdateTime: this.lastApiUpdateTime || nowUTC(),
-      nextCacheRefreshTime: addSecondsToDate(safeLastCacheTime, this.cacheDuration),
+      lastApiUpdateTime: this.lastApiUpdateTime,
+      nextCacheRefreshTime: nextCacheRefreshTime,
       fromCache: this.fromCache,
       time_last_update_utc: this.time_last_update_utc,
       time_next_update_utc: this.time_next_update_utc

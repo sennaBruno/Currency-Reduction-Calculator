@@ -24,10 +24,8 @@ interface CurrencyState {
   error: string | null;
   availableCurrencies: string[];
   metadata: ExchangeRateMetadata | null;
-  isLoadingMetadata: boolean;
 }
 
-// Define the initial state
 const initialState: CurrencyState = {
   sourceCurrency: 'USD',
   targetCurrency: 'BRL',
@@ -36,7 +34,6 @@ const initialState: CurrencyState = {
   error: null,
   availableCurrencies: ['USD', 'BRL', 'EUR', 'GBP', 'JPY'],
   metadata: null,
-  isLoadingMetadata: false,
 };
 
 // Create the currency slice
@@ -57,7 +54,6 @@ export const currencySlice = createSlice({
       // If metadata is provided with the exchange rate, update it
       if (action.payload.metadata) {
         state.metadata = action.payload.metadata;
-        state.isLoadingMetadata = false;
       }
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -76,14 +72,7 @@ export const currencySlice = createSlice({
       state.availableCurrencies = state.availableCurrencies.filter(
         c => c !== action.payload
       );
-    },
-    setMetadataLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoadingMetadata = action.payload;
-    },
-    setExchangeRateMetadata: (state, action: PayloadAction<ExchangeRateMetadata>) => {
-      state.metadata = action.payload;
-      state.isLoadingMetadata = false;
-    },
+    }
   },
 });
 
@@ -95,8 +84,6 @@ export const {
   setError,
   addCurrency,
   removeCurrency,
-  setMetadataLoading,
-  setExchangeRateMetadata,
 } = currencySlice.actions;
 
 export default currencySlice.reducer; 

@@ -3,15 +3,14 @@ import { CurrencyConversionService } from '../currencyConversionService';
 import { ICurrency } from '../../../domain/currency/currency.interface';
 import { IExchangeRateRepository } from '../../../domain/exchange-rate/exchangeRateRepository.interface';
 import { ExchangeRate } from '../../../domain/currency/exchangeRate.type';
-import { nowUTC } from '../../../utils/dateUtils';
+import { nowUTC, addSecondsToDate } from '../../../utils/dateUtils';
 
 // Mock exchange rate repository
 const mockExchangeRateRepository: jest.Mocked<IExchangeRateRepository> = {
   getExchangeRate: jest.fn(),
   getUsdToBrlRate: jest.fn(),
   getAllRates: jest.fn(),
-  getCacheConfig: jest.fn(),
-  getExchangeRateMetadata: jest.fn()
+  getCacheConfig: jest.fn()
 };
 
 // Sample currencies
@@ -45,13 +44,20 @@ describe('CurrencyConversionService', () => {
     it('should convert USD to EUR correctly', async () => {
       // Arrange
       const amount = 100;
+      const currentTime = nowUTC();
       const exchangeRate: ExchangeRate = {
         currencyPair: {
           source: usd,
           target: eur
         },
         rate: 0.85,
-        timestamp: nowUTC()
+        timestamp: currentTime,
+        fromCache: false,
+        lastApiUpdateTime: currentTime,
+        lastCacheRefreshTime: currentTime,
+        nextCacheRefreshTime: addSecondsToDate(currentTime, 3600),
+        time_last_update_utc: currentTime.toISOString(),
+        time_next_update_utc: addSecondsToDate(currentTime, 86400).toISOString()
       };
       
       mockExchangeRateRepository.getExchangeRate.mockResolvedValue(exchangeRate);
@@ -86,13 +92,20 @@ describe('CurrencyConversionService', () => {
     it('should handle zero amount conversion correctly', async () => {
       // Arrange
       const amount = 0;
+      const currentTime = nowUTC();
       const exchangeRate: ExchangeRate = {
         currencyPair: {
           source: usd,
           target: eur
         },
         rate: 0.85,
-        timestamp: nowUTC()
+        timestamp: currentTime,
+        fromCache: false,
+        lastApiUpdateTime: currentTime,
+        lastCacheRefreshTime: currentTime,
+        nextCacheRefreshTime: addSecondsToDate(currentTime, 3600),
+        time_last_update_utc: currentTime.toISOString(),
+        time_next_update_utc: addSecondsToDate(currentTime, 86400).toISOString()
       };
       
       mockExchangeRateRepository.getExchangeRate.mockResolvedValue(exchangeRate);
@@ -108,13 +121,20 @@ describe('CurrencyConversionService', () => {
     it('should handle negative amount by converting absolute value', async () => {
       // Arrange
       const amount = -100;
+      const currentTime = nowUTC();
       const exchangeRate: ExchangeRate = {
         currencyPair: {
           source: eur,
           target: gbp
         },
         rate: 0.9,
-        timestamp: nowUTC()
+        timestamp: currentTime,
+        fromCache: false,
+        lastApiUpdateTime: currentTime,
+        lastCacheRefreshTime: currentTime,
+        nextCacheRefreshTime: addSecondsToDate(currentTime, 3600),
+        time_last_update_utc: currentTime.toISOString(),
+        time_next_update_utc: addSecondsToDate(currentTime, 86400).toISOString()
       };
       
       mockExchangeRateRepository.getExchangeRate.mockResolvedValue(exchangeRate);
