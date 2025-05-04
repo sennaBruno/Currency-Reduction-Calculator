@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Calculation {
+  id            String            @id @default(cuid())
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  initialAmount Float
+  finalAmount   Float
+  currencyCode  String            @default("BRL")
+  title         String?
+  steps         CalculationStep[]
+}
+
+model CalculationStep {
+  id                 String      @id @default(cuid())
+  calculationId      String
+  order              Int
+  description        String
+  calculationDetails String
+  resultIntermediate Float
+  resultRunningTotal Float
+  explanation        String?
+  stepType           String
+  calculation        Calculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  @@index([calculationId])
+}

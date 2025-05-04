@@ -47,4 +47,25 @@ export class ApiService {
       throw new Error(error instanceof Error ? error.message : 'Failed to submit data');
     }
   }
+  
+  /**
+   * Make a DELETE request to the API
+   * @param endpoint The API endpoint to call
+   * @returns The response data
+   */
+  static async delete<T>(endpoint: string): Promise<T> {
+    try {
+      return await ky.delete(endpoint, {
+        timeout: 8000,
+        retry: {
+          limit: 2,
+          methods: ['DELETE'],
+          statusCodes: [408, 429, 500, 502, 503, 504]
+        }
+      }).json<T>();
+    } catch (error: unknown) {
+      console.error(`API DELETE error (${endpoint}):`, error instanceof Error ? error.message : 'Unknown error');
+      throw new Error(error instanceof Error ? error.message : 'Failed to delete resource');
+    }
+  }
 } 
