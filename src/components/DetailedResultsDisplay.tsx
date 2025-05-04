@@ -95,8 +95,8 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
         <CardTitle>Calculation Results</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Results table */}
-        <div className="rounded-md border mb-4">
+        {/* Results table for desktop */}
+        <div className="rounded-md border mb-4 hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -139,6 +139,44 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
           </Table>
         </div>
 
+        {/* Mobile-friendly cards display */}
+        <div className="space-y-4 md:hidden">
+          {steps.map((step) => {
+            const stepCurrency = getCurrencyForStep(step);
+            return (
+              <Card key={step.step} className={`border ${step.step % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                <CardContent className="p-3 space-y-3">
+                  <div className="flex justify-between items-center pb-1 border-b">
+                    <h3 className="font-semibold">Step {step.step}</h3>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">{step.description || 'N/A'}</h4>
+                    {step.explanation && (
+                      <p className="text-xs text-muted-foreground">{step.explanation}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Calculation:</span>
+                    <code className="text-sm bg-muted/30 px-1 py-0.5 rounded block overflow-x-auto whitespace-nowrap">
+                      {step.calculation_details || 'N/A'}
+                    </code>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm pt-1 border-t">
+                    <span className="text-muted-foreground">Result:</span>
+                    <span className="text-right">{formatCurrency(step.result_intermediate, stepCurrency)}</span>
+                    
+                    <span className="text-muted-foreground font-medium">Running Total:</span>
+                    <span className="text-right font-medium">{formatCurrency(step.result_running_total, stepCurrency)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
         {/* Final result after all steps */}
         <Card className="mt-4 bg-accent/10 border-accent/20">
           <CardContent className="py-3">
@@ -152,7 +190,7 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
         <div className="mt-4 flex justify-end">
           <Button 
             variant="outline" 
-            className="flex items-center gap-2" 
+            className="flex items-center gap-2 w-full sm:w-auto" 
             onClick={onDownload}
             disabled={!onDownload}
           >

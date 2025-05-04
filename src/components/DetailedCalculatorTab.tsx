@@ -136,24 +136,24 @@ const DetailedCalculatorTab: React.FC<DetailedCalculatorTabProps> = ({
         targetCurrency={targetCurrency}
       />
       
-      <div className="flex flex-col md:flex-row gap-2 md:justify-between">
+      <div className="space-y-4">
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={handleCreateExampleCalculation}
-          className="md:w-auto w-full"
+          className="w-full"
           disabled={isLoading}
         >
           Create Example
         </Button>
         
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={handleReset}
             disabled={isLoading}
+            className="w-full"
           >
             Reset
           </Button>
@@ -161,6 +161,7 @@ const DetailedCalculatorTab: React.FC<DetailedCalculatorTabProps> = ({
             type="button"
             onClick={handleDetailedSubmit}
             disabled={isLoading || detailedSteps.length === 0}
+            className="w-full"
           >
             Calculate
           </Button>

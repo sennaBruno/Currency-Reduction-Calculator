@@ -12,15 +12,6 @@ interface ExchangeRateDisplayProps {
   isLoading?: boolean;
 }
 
-const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
-  <span className="inline-flex items-center ml-1 group relative">
-    <InfoIcon className="h-3 w-3 text-muted-foreground/70 cursor-help" />
-    <span className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 bg-background border border-border rounded text-xs w-48 text-center">
-      {text}
-    </span>
-  </span>
-);
-
 /**
  * Component for displaying the current exchange rate between two currencies
  */
@@ -70,44 +61,97 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
   const renderTimestampSection = () => {
     if (isLoading) {
       return (
-        <span className="flex items-center">
+        <div className="flex items-center">
           <RefreshCcwIcon className="h-3 w-3 mr-1 animate-spin" />
-          Checking update time...
-        </span>
-      );
-    }
-    
-    if (metadata?.time_last_update_utc) {
-      return (
-        <div className="flex flex-wrap items-center gap-x-3">
-          <span className="flex items-center">
-            Updated: {formatApiTimestamp(metadata.time_last_update_utc)} 
-            <span className="text-xs text-muted-foreground/70 ml-1">
-              ({formatRelativeTimestamp(metadata.time_last_update_utc)})
-            </span>
-            <InfoTooltip text="This timestamp comes directly from the exchange rate API and shows when they last updated their rates." />
-          </span>
-          
-          {metadata.time_next_update_utc && (
-            <span className="flex items-center">
-              Next: {formatRelativeTimestamp(metadata.time_next_update_utc)}
-              <InfoTooltip text="The ExchangeRate API updates rates once every 24 hours according to our plan." />
-            </span>
-          )}
+          <span>Checking update time...</span>
         </div>
       );
     }
     
-    return exchangeRate?.timestamp ? (
-      <span className="flex items-center">
-        Updated: {formatTimestamp(exchangeRate.timestamp)}
-        <InfoTooltip text="This timestamp is from our local cache." />
-      </span>
+    if (metadata?.time_last_update_utc) {
+      // Mobile view 
+      const mobileLayout = (
+        <div className="grid gap-y-1 block sm:hidden">
+          <div className="flex items-start">
+            <div className="w-20 font-medium">Date:</div>
+            <div>{formatApiTimestamp(metadata.time_last_update_utc)}</div>
+          </div>
+          
+          <div className="flex items-start">
+            <div className="w-20 font-medium">Time ago:</div>
+            <div>{formatRelativeTimestamp(metadata.time_last_update_utc)}</div>
+          </div>
+          
+          {metadata.time_next_update_utc && (
+            <div className="flex items-start">
+              <div className="w-20 font-medium">Next update:</div>
+              <div>{formatRelativeTimestamp(metadata.time_next_update_utc)}</div>
+            </div>
+          )}
+        </div>
+      );
+      
+      // Desktop view 
+      const desktopLayout = (
+        <div className="hidden sm:flex sm:items-center">
+          <div className="flex items-center">
+            <div className="text-xs inline-flex items-center">
+              <span>Updated: {formatApiTimestamp(metadata.time_last_update_utc)}</span>
+              <span className="text-xs text-muted-foreground/70 ml-1">
+                ({formatRelativeTimestamp(metadata.time_last_update_utc)})
+              </span>
+            </div>
+          </div>
+          
+          {metadata.time_next_update_utc && (
+            <div className="flex items-center ml-4">
+              <div className="text-xs inline-flex items-center">
+                <span>Next: in about {formatRelativeTimestamp(metadata.time_next_update_utc)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+      
+      return (
+        <>
+          {mobileLayout}
+          {desktopLayout}
+        </>
+      );
+    }
+    
+    // Default case for non-API timestamps
+    const mobileLayout = exchangeRate?.timestamp ? (
+      <div className="flex items-start block sm:hidden">
+        <div className="w-20 font-medium">Date:</div>
+        <div>{formatTimestamp(exchangeRate.timestamp)}</div>
+      </div>
     ) : (
-      <span className="flex items-center">
+      <div className="flex items-center block sm:hidden">
         <RefreshCcwIcon className="h-3 w-3 mr-1" />
-        No update information available
-      </span>
+        <span>No update information available</span>
+      </div>
+    );
+    
+    const desktopLayout = exchangeRate?.timestamp ? (
+      <div className="hidden sm:flex sm:items-center">
+        <div className="text-xs inline-flex items-center">
+          <span>Updated: {formatTimestamp(exchangeRate.timestamp)}</span>
+        </div>
+      </div>
+    ) : (
+      <div className="hidden sm:flex sm:items-center">
+        <RefreshCcwIcon className="h-3 w-3 mr-1" />
+        <span>No update information available</span>
+      </div>
+    );
+    
+    return (
+      <>
+        {mobileLayout}
+        {desktopLayout}
+      </>
     );
   };
 
@@ -125,12 +169,12 @@ export const ExchangeRateDisplay: React.FC<ExchangeRateDisplayProps> = ({
           </div>
         </div>
         
-        <div className="exchange-rate-value text-xl font-semibold">
+        <div className="exchange-rate-value text-lg sm:text-xl font-semibold">
           1 {sourceCurrency.symbol} = {exchangeRate.rate?.toFixed(4) || '0.0000'} {targetCurrency.symbol}
         </div>
         
-        <div className="exchange-rate-timestamp flex items-center text-xs text-muted-foreground mt-2">
-          <CalendarIcon className="h-3 w-3 mr-1" />
+        <div className="exchange-rate-timestamp flex items-center mt-2 text-xs text-muted-foreground sm:border-t sm:pt-2">
+          <CalendarIcon className="h-3 w-3 mr-1 sm:block hidden" />
           {renderTimestampSection()}
         </div>
       </div>

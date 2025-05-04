@@ -96,7 +96,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CurrencySelector
             currencies={availableCurrencies}
             selectedCurrency={sourceCurrency}
@@ -123,7 +123,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
   if (currencyError || exchangeRateError) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CurrencySelector
             currencies={availableCurrencies}
             selectedCurrency={sourceCurrency}
@@ -149,7 +149,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CurrencySelector
           currencies={availableCurrencies}
           selectedCurrency={sourceCurrency}

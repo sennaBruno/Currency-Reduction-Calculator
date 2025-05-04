@@ -64,9 +64,9 @@ const DetailedInputForm: React.FC<DetailedInputFormProps> = ({
       />
 
       <Tabs value={calculationMode} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="traditional">Traditional Calculator</TabsTrigger>
-          <TabsTrigger value="detailed">Detailed Calculator</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 gap-x-2">
+          <TabsTrigger value="traditional" className="px-2 sm:px-4 text-xs sm:text-sm">Traditional Calculator</TabsTrigger>
+          <TabsTrigger value="detailed" className="px-2 sm:px-4 text-xs sm:text-sm">Detailed Calculator</TabsTrigger>
         </TabsList>
         
         <TabsContent value="traditional" className="space-y-4 mt-4">

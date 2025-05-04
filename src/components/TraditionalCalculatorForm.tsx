@@ -127,9 +127,9 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
       </div>
       
       <div className="space-y-2">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
           <Label htmlFor="exchangeRate">Exchange Rate ({sourceCurrencyObj.code} to {targetCurrencyObj.code})</Label>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 mt-1 sm:mt-0">
             <Checkbox 
               id="useAutoRate" 
               checked={useAutoRate}
@@ -175,16 +175,21 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
         </p>
       </div>
       
-      <div className="flex gap-4 justify-end">
+      <div className="flex flex-col sm:flex-row gap-4 sm:justify-end">
         <Button
           type="button"
           variant="outline"
           onClick={handleReset}
           disabled={isLoading}
+          className="w-full sm:w-32"
         >
           Reset
         </Button>
-        <Button type="submit" disabled={isLoading}>
+        <Button 
+          type="submit" 
+          disabled={isLoading} 
+          className="w-full sm:w-32"
+        >
           Calculate
         </Button>
       </div>

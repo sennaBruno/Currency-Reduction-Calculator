@@ -52,7 +52,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   const reduxError = useAppSelector(state => state.results.error);
   const displayError = reduxError || error;
   
-  // If there's an error, display the error message
   if (displayError) {
     return (
       <Card className="border-destructive/20 bg-destructive/10 shadow-sm">
@@ -72,7 +71,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     );
   }
 
-  // If no steps to display, show informational message
   if (!steps || steps.length === 0) {
     return (
       <Card className="border-muted bg-muted/20 shadow-sm">
@@ -83,7 +81,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     );
   }
 
-  // Extract the final value
   let finalValue = initialBRLNoReduction;
   if (steps.length > 0) {
     const lastStep = steps[steps.length - 1];
@@ -109,8 +106,8 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           </CardContent>
         </Card>
 
-        {/* Results table */}
-        <div className="rounded-md border">
+        {/* Results table for desktop */}
+        <div className="rounded-md border hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -163,6 +160,50 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           </Table>
         </div>
 
+        {/* Mobile-friendly cards display */}
+        <div className="space-y-4 md:hidden">
+          {steps.map((step) => {
+            const hasLegacyFormat = step.initialBRL !== undefined && 
+                                 step.reductionPercentage !== undefined &&
+                                 step.reductionAmountBRL !== undefined &&
+                                 step.finalBRL !== undefined;
+                                 
+            const stepFinalValue = hasLegacyFormat 
+              ? step.finalBRL 
+              : step.result_running_total;
+            
+            const reductionAmount = hasLegacyFormat 
+              ? step.reductionAmountBRL 
+              : step.result_intermediate;
+              
+            return (
+              <Card key={step.step} className={`border ${step.step % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex justify-between items-center pb-1 border-b">
+                    <h3 className="font-semibold">Step {step.step}</h3>
+                    {hasLegacyFormat && step.reductionPercentage !== undefined && (
+                      <span className="text-sm bg-primary/10 px-2 py-0.5 rounded">
+                        {step.reductionPercentage.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm">
+                    <span className="text-muted-foreground">Initial:</span>
+                    <span className="text-right">{formatCurrency(hasLegacyFormat ? step.initialBRL : undefined, targetCurrency)}</span>
+                    
+                    <span className="text-muted-foreground">Reduction:</span>
+                    <span className="text-right">{formatCurrency(reductionAmount, targetCurrency)}</span>
+                    
+                    <span className="text-muted-foreground font-medium">Final:</span>
+                    <span className="text-right font-medium">{formatCurrency(stepFinalValue, targetCurrency)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
         {/* Final result after all reductions */}
         <Card className="mt-4 bg-accent/10 border-accent/20">
           <CardContent className="py-3">
@@ -176,7 +217,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <div className="mt-4 flex justify-end">
           <Button 
             variant="outline" 
-            className="flex items-center gap-2" 
+            className="flex items-center gap-2 w-full sm:w-auto" 
             onClick={onDownload}
             disabled={!onDownload}
           >

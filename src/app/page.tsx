@@ -281,10 +281,10 @@ export default function Home() {
 
   return (
     <div className="bg-background">
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Currency Exchange Rate Calculator</h1>
+      <main className="container mx-auto px-4 py-4 sm:py-6 md:py-8">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 md:mb-8 text-center">Currency Exchange Rate Calculator</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-6xl mx-auto">
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle>Input Values</CardTitle>
@@ -311,20 +311,30 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
-            ) : calculationMode === 'simple' ? (
-              <ResultsDisplay 
-                steps={calculationResult?.steps || []} 
-                initialBRLNoReduction={calculationResult?.initialBRLNoReduction || 0} 
-                error={error}
-                onDownload={calculationResult ? handleDownload : undefined}
-              />
+            ) : calculationResult || detailedResult ? (
+              calculationMode === 'simple' ? (
+                <ResultsDisplay 
+                  steps={calculationResult?.steps || []} 
+                  initialBRLNoReduction={calculationResult?.initialBRLNoReduction || 0} 
+                  error={error}
+                  onDownload={calculationResult ? handleDownload : undefined}
+                />
+              ) : (
+                <DetailedResultsDisplay 
+                  steps={detailedResult?.steps || []} 
+                  final_result={detailedResult?.final_result || 0}
+                  error={error}
+                  onDownload={detailedResult ? handleDownload : undefined}
+                />
+              )
             ) : (
-              <DetailedResultsDisplay 
-                steps={detailedResult?.steps || []} 
-                final_result={detailedResult?.final_result || 0}
-                error={error}
-                onDownload={detailedResult ? handleDownload : undefined}
-              />
+              <Card className="shadow-sm">
+                <CardContent className="p-6">
+                  <div className="text-center text-muted-foreground">
+                    Enter values and click Calculate to see results.
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
