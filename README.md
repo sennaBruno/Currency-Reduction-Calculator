@@ -57,6 +57,19 @@ The application exposes the following API endpoints:
 -   **Testing:** Jest + React Testing Library
 -   **Utilities:** clsx, tailwind-merge, class-variance-authority, next-themes
 
+
+## State Management
+
+This application uses **Redux Toolkit** for managing global application state. Key concepts include:
+
+-   **Store**: The single source of truth for the application state.
+-   **Slices**: Define reducers and actions for specific parts of the state (e.g., currency, calculator).
+-   **Reducers**: Handle state transitions based on dispatched actions.
+-   **Actions**: Plain objects describing state changes.
+-   **Async Thunks**: Handle asynchronous logic like API calls and dispatch actions based on the results.
+
+The state management logic is primarily located in the `src/store/` directory.
+
 ## Architecture
 
 The application follows a **Layered Architecture**, drawing inspiration from Clean Architecture principles:
