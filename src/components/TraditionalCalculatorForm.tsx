@@ -8,9 +8,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Checkbox } from "./ui/checkbox";
-import { ICurrency } from '../domain/currency';
+import { ICurrency } from '../domain/currency/currency.interface';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateTraditionalInput, clearForm } from '@/store/slices/calculatorSlice';
+import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
 
 /**
  * Validation schema for the traditional calculator form
@@ -59,6 +60,10 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
   const dispatch = useAppDispatch();
   const { sourceCurrency, targetCurrency, exchangeRate } = useAppSelector(state => state.currency);
   
+  const currencyRegistry = new CurrencyRegistry();
+  const sourceCurrencyObj = currencyRegistry.getCurrencyByCode(sourceCurrency) || { code: sourceCurrency, symbol: '', name: sourceCurrency };
+  const targetCurrencyObj = currencyRegistry.getCurrencyByCode(targetCurrency) || { code: targetCurrency, symbol: '', name: targetCurrency };
+  
   const traditionalForm = useForm<TraditionalFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(traditionalFormSchema) as any,
@@ -79,10 +84,13 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
   const handleTraditionalSubmit: SubmitHandler<TraditionalFormValues> = (data) => {
     dispatch(updateTraditionalInput(JSON.stringify(data)));
     
+    const sourceCurrencyObject = currencyRegistry.getCurrencyByCode(sourceCurrency) as ICurrency;
+    const targetCurrencyObject = currencyRegistry.getCurrencyByCode(targetCurrency) as ICurrency;
+    
     onSubmit({
       ...data,
-      sourceCurrency,
-      targetCurrency
+      sourceCurrency: sourceCurrencyObject,
+      targetCurrency: targetCurrencyObject
     });
   };
 
@@ -103,7 +111,7 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
   return (
     <form onSubmit={traditionalForm.handleSubmit(handleTraditionalSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="initialAmount">Initial Amount ({sourceCurrency.code})</Label>
+        <Label htmlFor="initialAmount">Initial Amount ({sourceCurrencyObj.code})</Label>
         <Input
           id="initialAmount"
           type="number"
@@ -120,7 +128,7 @@ const TraditionalCalculatorForm: React.FC<TraditionalCalculatorFormProps> = ({
       
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <Label htmlFor="exchangeRate">Exchange Rate ({sourceCurrency.code} to {targetCurrency.code})</Label>
+          <Label htmlFor="exchangeRate">Exchange Rate ({sourceCurrencyObj.code} to {targetCurrencyObj.code})</Label>
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="useAutoRate" 

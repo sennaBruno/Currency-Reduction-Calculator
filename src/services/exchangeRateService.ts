@@ -1,6 +1,5 @@
 import { ApiService } from './api';
 import { ICurrency } from '../domain/currency';
-import { ExchangeRate } from '../domain/currency/exchangeRate.type';
 
 /**
  * Response type from the exchange rate API

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from './ui/button';
 import DetailedStepsInput from './DetailedStepsInput';
 import { ICurrency } from '../domain/currency';
@@ -8,6 +8,9 @@ import { createExampleCalculationSteps } from '../utils/currencyUtils';
 import { InputStep } from '../types/calculator';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setDetailedSteps, clearForm } from '@/store/slices/calculatorSlice';
+import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
+
+const currencyRegistry = new CurrencyRegistry();
 
 interface DetailedCalculatorTabProps {
   onSubmit: (data: { 
@@ -26,8 +29,18 @@ const DetailedCalculatorTab: React.FC<DetailedCalculatorTabProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const detailedSteps = useAppSelector(state => state.calculator.detailedSteps);
-  const { sourceCurrency, targetCurrency, exchangeRate } = useAppSelector(state => state.currency);
+  const { sourceCurrency: sourceCode, targetCurrency: targetCode, exchangeRate } = useAppSelector(state => state.currency);
   
+  const sourceCurrency = useMemo(() => 
+    currencyRegistry.getCurrencyByCode(sourceCode) as ICurrency,
+    [sourceCode]
+  );
+  
+  const targetCurrency = useMemo(() => 
+    currencyRegistry.getCurrencyByCode(targetCode) as ICurrency,
+    [targetCode]
+  );
+
   const handleDetailedSubmit = () => {
     if (detailedSteps.length === 0) {
       alert('Please add at least one calculation step');

@@ -8,7 +8,7 @@ import { PlusCircle, InfoIcon, AlertCircle } from "lucide-react";
 import { ICurrency } from '../domain/currency';
 import StepInputRow from './StepInputRow';
 import { InputStep, getStepDescriptionPlaceholder } from '../types/calculator';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppDispatch } from '@/store/hooks';
 import { addStep, updateStep, removeStep } from '@/store/slices/calculatorSlice';
 
 interface DetailedStepsInputProps {

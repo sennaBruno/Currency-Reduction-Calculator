@@ -1,6 +1,8 @@
 import { ApiService } from './api';
 import { InputStep } from '../types/calculator';
 
+export type { InputStep };
+
 /**
  * Result of a calculation step
  */

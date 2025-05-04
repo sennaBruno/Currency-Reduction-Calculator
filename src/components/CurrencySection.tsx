@@ -9,6 +9,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setSourceCurrency, setTargetCurrency } from '@/store/slices/currencySlice';
 import { CurrencyRegistry } from '@/application/currency/currencyRegistry.service';
 import { fetchExchangeRate } from '@/store/thunks/currencyThunks';
+import { RootState } from '@/store/store';
 
 const currencyRegistry = new CurrencyRegistry();
 
@@ -31,7 +32,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
     availableCurrencies: availableCurrencyCodes,
     isLoading: currencyIsLoading,
     error: currencyError
-  } = useAppSelector((state: any) => state.currency);
+  } = useAppSelector((state: RootState) => state.currency);
   
   const availableCurrencies = useMemo(() => {
     return availableCurrencyCodes
@@ -49,7 +50,7 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
     [targetCode]
   );
   
-  const calculatorIsLoading = useAppSelector((state: any) => state.calculator.isLoading);
+  const calculatorIsLoading = useAppSelector((state: RootState) => state.calculator.isLoading);
   const isLoading = currencyIsLoading || calculatorIsLoading || exchangeRateIsLoading;
   
   const fetchExchangeRateForCurrencyPair = useCallback(async (source: ICurrency, target: ICurrency) => {
@@ -65,7 +66,6 @@ const CurrencySection: React.FC<CurrencySectionProps> = ({
 
   // Fetch exchange rate if not available
   useEffect(() => {
-    // Only fetch if there's no exchange rate and we're not loading
     if (exchangeRate === null && !isLoading) {
       console.log('Fetching initial exchange rate because it was null');
       fetchExchangeRateForCurrencyPair(sourceCurrency, targetCurrency);

@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ExchangeRateService } from '../../../../../application/currency/exchangeRate.service';
 import { ExchangeRateRepository } from '../../../../../infrastructure/exchange-rate/exchangeRateRepository';
 import { CurrencyRegistry } from '../../../../../application/currency/currencyRegistry.service';
@@ -20,11 +20,10 @@ const currencyRegistry = new CurrencyRegistry();
  * Returns the exchange rate for a specific currency pair
  */
 export async function GET(
-  context: { params: { source: string; target: string } }
-) {
-  const params = await context.params;
-  const source = await params.source;
-  const target = await params.target;
+  request: Request,
+  { params }: { params: Promise<{ source: string; target: string }> }
+): Promise<Response> {
+  const { source, target } = await params;
   
   try {
     const sourceCurrency = currencyRegistry.getCurrencyByCode(source);

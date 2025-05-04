@@ -237,8 +237,9 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
       tags: [this.cacheTag, cacheKey],
     })();
     
-    if (this.lastCacheRefreshTime && result.timestamp) {
-      if (this.lastCacheRefreshTime.getTime() > result.timestamp.getTime()) {
+    if (this.lastCacheRefreshTime) {
+      if (result.timestamp && this.lastCacheRefreshTime.getTime() > 
+          (result.timestamp instanceof Date ? result.timestamp.getTime() : new Date(result.timestamp).getTime())) {
         result.fromCache = true;
       }
     }
@@ -306,7 +307,8 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
     // Update fromCache flag for cached results
     if (this.lastCacheRefreshTime) {
       for (const rate of results) {
-        if (rate.timestamp && this.lastCacheRefreshTime.getTime() > rate.timestamp.getTime()) {
+        if (rate.timestamp && this.lastCacheRefreshTime.getTime() > 
+            (rate.timestamp instanceof Date ? rate.timestamp.getTime() : new Date(rate.timestamp).getTime())) {
           rate.fromCache = true;
         }
       }
@@ -332,10 +334,8 @@ export class ExchangeRateRepository implements IExchangeRateRepository {
   getExchangeRateMetadata(): ExchangeRateMetadataInterface {
     const safeLastCacheTime = this.lastCacheRefreshTime || nowUTC();
     
-    // Calculate nextCacheRefreshTime based on lastCacheRefreshTime and cacheDuration
     const nextCacheRefreshTime = addSecondsToDate(safeLastCacheTime, this.cacheDuration);
     
-    // Use the actual values from the API without creating fake ones
     return {
       lastCacheRefreshTime: safeLastCacheTime,
       lastApiUpdateTime: this.lastApiUpdateTime,
