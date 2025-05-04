@@ -1,5 +1,5 @@
 import { prisma } from './db';
-import { Calculation, CalculationStep } from '../../src/generated/prisma';
+import { Calculation } from '../../src/generated/prisma';
 
 /**
  * Types for calculation operations
