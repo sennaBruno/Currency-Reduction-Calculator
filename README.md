@@ -4,7 +4,7 @@ This project is a Next.js application that provides currency exchange rate infor
 
 ## Project Overview
 
-The application fetches exchange rate data, caches it, and serves it through a set of APIs. It includes features like API client throttling and configurable cache TTL.
+The application fetches exchange rate data, caches it, and serves it through a set of APIs. It includes features like API client throttling, configurable cache TTL, and calculation history persistence.
 
 ## Getting Started
 
@@ -26,6 +26,10 @@ The application fetches exchange rate data, caches it, and serves it through a s
     # or
     yarn install
     ```
+3.  Set up the database:
+    ```bash
+    npx prisma generate
+    ```
 
 ### Running the Development Server
 
@@ -46,6 +50,9 @@ The application exposes the following API endpoints:
 -   `GET /api/exchange-rate`: Fetches the latest exchange rate 
 -   `GET /api/exchange-rates?from=EUR&to=BRL`: Fetches the exchange rate between specified `from` and `to` currencies.
 -   `GET /api/exchange-rate-metadata`: Provides metadata related to the exchange rates 
+-   `GET /api/calculations`: Retrieves all saved calculation history
+-   `GET /api/calculations?id=[id]`: Retrieves a specific calculation by ID
+-   `DELETE /api/calculations?id=[id]`: Deletes a calculation by ID
 
 ## Technology Stack
 
@@ -55,8 +62,30 @@ The application exposes the following API endpoints:
 -   **Forms:** React Hook Form + Zod
 -   **HTTP Client:** ky
 -   **Testing:** Jest + React Testing Library
+-   **Database:** PostgreSQL via Supabase
+-   **ORM:** Prisma
 -   **Utilities:** clsx, tailwind-merge, class-variance-authority, next-themes
 
+## Database Integration
+
+The application uses **Supabase** and **Prisma** for data persistence:
+
+1. **Setup**: Requires a Supabase account and project with PostgreSQL database.
+2. **Schema**: Defined in `prisma/schema.prisma`, includes models for Calculation and CalculationStep.
+3. **Connection**: Uses connection pooling for efficient database access.
+4. **Environment Variables**: Requires `DATABASE_URL` and `DIRECT_URL` to be configured in `.env.local`.
+
+### Supabase Connection Recommendations
+
+- Use transaction mode pooler (`port 6543`) for serverless environments
+- Use URL-encoded credentials in your connection strings
+- Add connection timeout parameters to avoid connection issues
+- Set proper configuration for your application's usage pattern
+
+Example connection string:
+```
+DATABASE_URL="postgresql://[username]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true&connect_timeout=60&pool_timeout=60"
+```
 
 ## State Management
 
@@ -78,6 +107,7 @@ The application follows a **Layered Architecture**, drawing inspiration from Cle
 2.  **Application Layer (`src/application/`)**: Contains application-specific logic and use case orchestrators (services like `ExchangeRateService`, `CurrencyConverterService`). It depends on the Domain layer.
 3.  **Infrastructure Layer (`src/infrastructure/`)**: Provides concrete implementations for external concerns like API clients (`ExchangeRateApiClient`), data repositories (`ExchangeRateRepository`), caching, and throttling. It implements interfaces defined in the Domain layer.
 4.  **Presentation Layer (`src/app/`, `src/components/`)**: Handles UI rendering (React components), user interactions, and routing (Next.js App Router). It interacts with the Application layer (or dedicated client-side services).
+5.  **Data Persistence Layer (`src/lib/`)**: Contains database client (Prisma) and data access functions for persisting and retrieving calculations.
 
 The dependencies flow inwards: Presentation -> Application -> Domain <- Infrastructure.
 
@@ -109,5 +139,6 @@ Environment variables can be configured in `.env.local` (refer to `.env.example`
 -   **Exchange Rate API Details (`EXCHANGE_RATE_API_KEY`, `EXCHANGE_RATE_API_BASE_URL`)**: Credentials and endpoint for the chosen provider.
 -   **Cache TTL (`EXCHANGE_RATE_CACHE_REVALIDATE_SECONDS`)**: Cache duration in seconds for exchange rates (e.g., `3600` for 1 hour).
 -   **API Throttling (`API_REQUESTS_PER_SECOND`, `API_THROTTLE_INTERVAL_MS`)**: Limits requests to the external API (e.g., defaults to `2` requests per `1000` ms observed in logs).
+-   **Database Connection (`DATABASE_URL`, `DIRECT_URL`)**: Connection strings for Supabase PostgreSQL database.
 
 *Note: Running `npm run dev` may show console logs indicating the specific runtime values being used for configuration like cache TTL and throttling.*
