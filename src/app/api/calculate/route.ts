@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { CalculatorService } from '../../../application/calculator/calculatorService';
-import { ICalculationStep } from '../../../domain/calculator/calculatorService.interface';
+import { ICalculationStep, ICalculationResult } from '../../../domain/calculator/calculatorService.interface';
 import { ICurrency } from '../../../domain/currency';
+import { saveCalculation } from '../../../lib/calculations';
 
 // Create an instance of the calculator service
 const calculatorService = new CalculatorService();
@@ -148,7 +149,33 @@ export async function POST(request: Request) {
           const result = await Promise.race([
             calculatorService.processDetailedCalculation(body.steps, sourceCurrency, targetCurrency),
             timeoutPromise
-          ]);
+          ]) as { steps: ICalculationResult[]; final_result: number };
+          
+          // Save calculation to database
+          try {
+            // Find the initial amount (from the 'initial' step)
+            const initialStep = body.steps.find(step => step.type === 'initial');
+            const initialAmount = initialStep ? initialStep.value : 0;
+            
+            await saveCalculation({
+              initialAmount,
+              finalAmount: result.final_result,
+              currencyCode: targetCurrency.code,
+              title: `Calculation (${new Date().toISOString().split('T')[0]})`,
+              steps: result.steps.map((step: ICalculationResult) => ({
+                order: step.step,
+                description: step.description,
+                calculationDetails: step.calculation_details,
+                resultIntermediate: step.result_intermediate,
+                resultRunningTotal: step.result_running_total,
+                explanation: step.explanation,
+                stepType: body.steps?.[step.step - 1]?.type || 'unknown'
+              }))
+            });
+          } catch (dbError) {
+            console.error('[API /api/calculate DB Error]:', dbError);
+          }
+          
           return NextResponse.json({
             ...(result as object),
             sourceCurrency,
@@ -233,6 +260,28 @@ export async function POST(request: Request) {
           sourceCurrency,
           targetCurrency
         );
+        
+        try {
+          await saveCalculation({
+            initialAmount,
+            finalAmount: result.final_result,
+            currencyCode: targetCurrency.code,
+            title: `Simple Calculation (${new Date().toISOString().split('T')[0]})`,
+            steps: result.steps.map((step, index) => ({
+              order: step.step,
+              description: step.description,
+              calculationDetails: step.calculation_details,
+              resultIntermediate: step.result_intermediate,
+              resultRunningTotal: step.result_running_total,
+              explanation: step.explanation,
+              stepType: index === 0 ? 'initial' : 
+                       index === 1 ? 'exchange_rate' : 'percentage_reduction'
+            }))
+          });
+        } catch (dbError) {
+          console.error('[API /api/calculate DB Error]:', dbError);
+        }
+        
         return NextResponse.json({
           ...result,
           sourceCurrency,
