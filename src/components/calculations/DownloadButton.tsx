@@ -3,29 +3,7 @@
 import { useState } from 'react'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-interface CalculationStep {
-  id: string
-  order: number
-  description: string
-  calculationDetails: string
-  resultIntermediate: number
-  resultRunningTotal: number
-  explanation?: string | null
-  stepType: string
-}
-
-interface Calculation {
-  id: string
-  createdAt: Date
-  updatedAt: Date
-  initialAmount: number
-  finalAmount: number
-  currencyCode: string
-  title?: string | null
-  userId?: string | null
-  steps: CalculationStep[]
-}
+import { Calculation } from '@/lib/types/Calculation'
 
 interface DownloadButtonProps {
   calculation: Calculation

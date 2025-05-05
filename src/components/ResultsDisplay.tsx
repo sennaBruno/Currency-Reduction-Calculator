@@ -15,32 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { ICurrency } from '../domain/currency';
-import { formatCurrency } from '../domain/currency/currencyConversion.utils';
+import { formatCurrency } from '@/domain/currency/currencyConversion.utils';
 import { useAppSelector } from '@/store/hooks';
-
-// Legacy interface
-interface CalculationStep {
-  step: number;
-  initialBRL?: number; 
-  reductionPercentage?: number; 
-  reductionAmountBRL?: number; 
-  finalBRL?: number; 
-  description?: string;
-  calculation_details?: string;
-  result_intermediate?: number;
-  result_running_total?: number;
-  explanation?: string;
-}
-
-interface ResultsDisplayProps {
-  steps: CalculationStep[];
-  initialBRLNoReduction: number;
-  error?: string;
-  onDownload?: () => void;
-  sourceCurrency?: ICurrency;
-  targetCurrency?: ICurrency;
-}
+import { ResultsDisplayProps } from '@/types/calculator';
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
   steps, 

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { AuthError } from '@supabase/supabase-js'
 
 export default function AuthForm() {
   const [email, setEmail] = useState('')
@@ -34,8 +35,14 @@ export default function AuthForm() {
       }
       router.refresh()
       router.push('/')
-    } catch (error: any) {
-      setError(error.message || 'An error occurred')
+    } catch (error: unknown) {
+      if (error instanceof AuthError) {
+        setError(error.message)
+      } else if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError('An unexpected error occurred')
+      }
     } finally {
       setIsLoading(false)
     }

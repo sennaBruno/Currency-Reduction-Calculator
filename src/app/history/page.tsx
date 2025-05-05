@@ -16,32 +16,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/domain/currency/currencyConversion.utils';
-import { Trash2, Eye, ArrowLeft } from 'lucide-react';
+import { Eye, ArrowLeft } from 'lucide-react';
 import { getCalculationsForUser } from '../actions';
 import { DeleteCalculationButton } from '@/components/calculations/DeleteCalculationButton';
-
-interface CalculationStep {
-  id: string;
-  order: number;
-  description: string;
-  calculationDetails: string;
-  resultIntermediate: number;
-  resultRunningTotal: number;
-  explanation?: string | null;
-  stepType: string;
-}
-
-interface Calculation {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  initialAmount: number;
-  finalAmount: number;
-  currencyCode: string;
-  title?: string | null;
-  userId?: string | null;
-  steps: CalculationStep[];
-}
+import { Calculation } from '@/lib/types/Calculation';
 
 export default async function HistoryPage() {
   const calculations = await getCalculationsForUser() as Calculation[];

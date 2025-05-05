@@ -4,7 +4,6 @@ import { ICalculationStep, ICalculationResult } from '../../../domain/calculator
 import { ICurrency } from '../../../domain/currency';
 import { saveCalculation } from '../../../lib/calculations';
 import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 
 const calculatorService = new CalculatorService();
 
@@ -50,7 +49,6 @@ export async function POST(request: Request) {
     // Get user ID from the session if available
     let userId: string | undefined = undefined;
     try {
-      const cookieStore = cookies();
       const supabase = await createClient();
       const { data: { session } } = await supabase.auth.getSession();
       userId = session?.user?.id;

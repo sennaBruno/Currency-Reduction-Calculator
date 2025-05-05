@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getCalculations, getCalculationById, deleteCalculation } from '../../../lib/calculations';
 import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 
 /**
  * Helper to get userId from session
  */
 async function getUserId() {
-  const cookieStore = cookies();
   const supabase = await createClient();
   const { data } = await supabase.auth.getSession();
   return data.session?.user?.id;

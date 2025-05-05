@@ -22,34 +22,12 @@ import { getCalculationForUser } from '@/app/actions';
 import { DeleteCalculationButton } from '@/components/calculations/DeleteCalculationButton';
 import { DownloadButton } from '@/components/calculations/DownloadButton';
 import { notFound } from 'next/navigation';
+import { Calculation } from '@/lib/types/Calculation';
 
-interface CalculationStep {
-  id: string;
-  order: number;
-  description: string;
-  calculationDetails: string;
-  resultIntermediate: number;
-  resultRunningTotal: number;
-  explanation?: string | null;
-  stepType: string;
-}
-
-interface Calculation {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  initialAmount: number;
-  finalAmount: number;
-  currencyCode: string;
-  title?: string | null;
-  userId?: string | null;
-  steps: CalculationStep[];
-}
-
-export default async function CalculationDetailsPage({ 
-  params 
-}: { 
-  params: { id: string } 
+export default async function CalculationDetailsPage({
+  params,
+}: {
+  params: { id: string };
 }) {
   const id = params.id;
   const calculation = await getCalculationForUser(id) as Calculation;

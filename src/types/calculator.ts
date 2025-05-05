@@ -1,13 +1,107 @@
-import { ICurrency } from '../domain/currency';
+import { ICurrency } from '@/domain/currency/currency.interface';
 
 /**
- * Definition of a calculation step for the detailed calculator
+ * Input step used in calculator forms
  */
 export interface InputStep {
   description: string;
   type: 'initial' | 'exchange_rate' | 'percentage_reduction' | 'fixed_reduction' | 'addition' | 'custom';
   value: number;
   explanation?: string;
+}
+
+/**
+ * Base calculation step with processed results
+ */
+export interface CalculationStep {
+  step: number;
+  description: string;
+  calculation_details: string;
+  result_intermediate: number;
+  result_running_total: number;
+  explanation?: string;
+}
+
+/**
+ * Legacy calculation step with additional fields for backward compatibility
+ */
+export interface LegacyCalculationStep extends CalculationStep {
+  initialBRL?: number;
+  reductionPercentage?: number; 
+  reductionAmountBRL?: number; 
+  finalBRL?: number;
+}
+
+/**
+ * Detailed calculation step stored in the database
+ */
+export interface DatabaseCalculationStep {
+  id: string;
+  order: number;
+  description: string;
+  calculationDetails: string;
+  resultIntermediate: number;
+  resultRunningTotal: number;
+  explanation?: string | null;
+  stepType: string;
+}
+
+/**
+ * Calculation entity stored in the database
+ */
+export interface DatabaseCalculation {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  initialAmount: number;
+  finalAmount: number;
+  currencyCode: string;
+  title?: string | null;
+  userId?: string | null;
+  steps: DatabaseCalculationStep[];
+}
+
+/**
+ * Result of a detailed calculation with multiple steps
+ */
+export interface DetailedCalculationResult {
+  steps: CalculationStep[];
+  final_result: number;
+}
+
+/**
+ * Result of a simple calculation with USD-BRL conversion
+ */
+export interface SimpleCalculationResult {
+  steps: LegacyCalculationStep[];
+  initialBRLNoReduction: number;
+  final_result: number;
+}
+
+/**
+ * Props for results display components
+ */
+export interface BaseResultsDisplayProps {
+  error?: string;
+  onDownload?: () => void;
+  sourceCurrency?: ICurrency;
+  targetCurrency?: ICurrency;
+}
+
+/**
+ * Props for traditional results display
+ */
+export interface ResultsDisplayProps extends BaseResultsDisplayProps {
+  steps: LegacyCalculationStep[];
+  initialBRLNoReduction: number;
+}
+
+/**
+ * Props for detailed results display
+ */
+export interface DetailedResultsDisplayProps extends BaseResultsDisplayProps {
+  steps: CalculationStep[];
+  final_result: number;
 }
 
 /**

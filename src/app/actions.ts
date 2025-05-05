@@ -1,16 +1,14 @@
 'use server'
 
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { saveCalculation, getCalculations, getCalculationById, deleteCalculation } from '@/lib/calculations'
+import { saveCalculation, getCalculations, getCalculationById, deleteCalculation, CalculationInput } from '@/lib/calculations'
 import { revalidatePath } from 'next/cache'
 
 /**
  * Gets the authenticated user's ID from the session
  */
 async function getUserId() {
-  const cookieStore = cookies()
   const supabase = await createClient()
   const { data } = await supabase.auth.getSession()
   
@@ -24,10 +22,9 @@ async function getUserId() {
 /**
  * Server action to save a calculation for the authenticated user
  */
-export async function saveCalculationForUser(data: any) {
+export async function saveCalculationForUser(data: Omit<CalculationInput, 'userId'>) {
   const userId = await getUserId()
   
-  // Add userId to the calculation data
   const result = await saveCalculation({
     ...data,
     userId

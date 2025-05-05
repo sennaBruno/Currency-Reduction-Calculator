@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { deleteCalculationForUser } from '@/app/actions'
 
@@ -19,7 +19,10 @@ export function DeleteCalculationButton({ id }: DeleteCalculationButtonProps) {
       try {
         setIsDeleting(true)
         await deleteCalculationForUser(id)
-        router.refresh() 
+        router.refresh()
+        if (window.location.pathname.includes('/calculation/')) {
+          router.push('/history')
+        }
       } catch (error) {
         console.error('Failed to delete calculation:', error)
         alert('Failed to delete calculation. Please try again.')
@@ -34,9 +37,9 @@ export function DeleteCalculationButton({ id }: DeleteCalculationButtonProps) {
       variant="outline" 
       size="icon"
       onClick={handleDelete}
-      className="text-destructive hover:bg-destructive/10"
-      title="Delete Calculation"
       disabled={isDeleting}
+      title="Delete"
+      className="ml-2 text-destructive hover:bg-destructive/10"
     >
       {isDeleting ? (
         <div className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />

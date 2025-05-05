@@ -15,27 +15,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { ICurrency } from '../domain/currency';
-import { formatCurrency } from '../domain/currency/currencyConversion.utils';
+import { ICurrency } from '@/domain/currency/currency.interface';
+import { formatCurrency } from '@/domain/currency/currencyConversion.utils';
 import { useAppSelector } from '@/store/hooks';
-
-interface DetailedCalculationStep {
-  step: number;
-  description: string;
-  calculation_details: string;
-  result_intermediate: number;
-  result_running_total: number;
-  explanation?: string;
-}
-
-interface DetailedResultsDisplayProps {
-  steps: DetailedCalculationStep[];
-  final_result: number;
-  error?: string;
-  onDownload?: () => void;
-  sourceCurrency?: ICurrency;
-  targetCurrency?: ICurrency;
-}
+import { CalculationStep, DetailedResultsDisplayProps } from '@/types/calculator';
 
 const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({ 
   steps, 
@@ -71,7 +54,7 @@ const DetailedResultsDisplay: React.FC<DetailedResultsDisplayProps> = ({
     );
   }
 
-  const getCurrencyForStep = (step: DetailedCalculationStep): ICurrency => {
+  const getCurrencyForStep = (step: CalculationStep): ICurrency => {
     if (step.description.toLowerCase().includes('convert')) {
       return step.result_running_total === step.result_intermediate 
         ? sourceCurrency 
