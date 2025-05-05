@@ -1,16 +1,37 @@
 import { NextResponse } from 'next/server';
 import { getCalculations, getCalculationById, deleteCalculation } from '../../../lib/calculations';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+
+/**
+ * Helper to get userId from session
+ */
+async function getUserId() {
+  const cookieStore = cookies();
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id;
+}
 
 /**
  * GET /api/calculations - Get all calculations
  */
 export async function GET(request: Request) {
   try {
+    const userId = await getUserId();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
     if (id) {
-      const calculation = await getCalculationById(id);
+      const calculation = await getCalculationById(id, userId);
       
       if (!calculation) {
         return NextResponse.json(
@@ -22,7 +43,7 @@ export async function GET(request: Request) {
       return NextResponse.json(calculation);
     }
     
-    const calculations = await getCalculations();
+    const calculations = await getCalculations(userId);
     return NextResponse.json(calculations);
   } catch (error) {
     console.error('[API /api/calculations Error]:', error);
@@ -38,6 +59,15 @@ export async function GET(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
+    const userId = await getUserId();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     
@@ -48,7 +78,7 @@ export async function DELETE(request: Request) {
       );
     }
     
-    const success = await deleteCalculation(id);
+    const success = await deleteCalculation(id, userId);
     
     if (!success) {
       return NextResponse.json(

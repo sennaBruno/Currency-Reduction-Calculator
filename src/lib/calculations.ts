@@ -10,6 +10,7 @@ export type CalculationInput = {
   currencyCode?: string;
   title?: string;
   steps: CalculationStepInput[];
+  userId?: string;
 };
 
 export type CalculationStepInput = {
@@ -42,11 +43,15 @@ export async function saveCalculation(data: CalculationInput): Promise<Calculati
 }
 
 /**
- * Retrieves all calculations with their steps
+ * Retrieves all calculations with their steps for a specific user
+ * If userId is not provided, returns all calculations (for backward compatibility)
  */
-export async function getCalculations(): Promise<Calculation[]> {
+export async function getCalculations(userId?: string): Promise<Calculation[]> {
   try {
+    const where = userId ? { userId } : {};
+    
     return await prisma.calculation.findMany({
+      where,
       include: {
         steps: {
           orderBy: {
@@ -67,10 +72,13 @@ export async function getCalculations(): Promise<Calculation[]> {
 
 /**
  * Retrieves a single calculation by its ID
+ * If userId is provided, additionally checks if the calculation belongs to that user
  */
-export async function getCalculationById(id: string): Promise<Calculation | null> {
-  return prisma.calculation.findUnique({
-    where: { id },
+export async function getCalculationById(id: string, userId?: string): Promise<Calculation | null> {
+  const where = userId ? { id, userId } : { id };
+  
+  return prisma.calculation.findFirst({
+    where,
     include: {
       steps: {
         orderBy: {
@@ -83,11 +91,14 @@ export async function getCalculationById(id: string): Promise<Calculation | null
 
 /**
  * Deletes a calculation and its steps
+ * If userId is provided, checks if the calculation belongs to that user
  */
-export async function deleteCalculation(id: string): Promise<boolean> {
+export async function deleteCalculation(id: string, userId?: string): Promise<boolean> {
   try {
+    const where = userId ? { id, userId } : { id };
+    
     await prisma.calculation.delete({
-      where: { id }
+      where
     });
     return true;
   } catch (error) {

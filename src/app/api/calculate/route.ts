@@ -3,11 +3,11 @@ import { CalculatorService } from '../../../application/calculator/calculatorSer
 import { ICalculationStep, ICalculationResult } from '../../../domain/calculator/calculatorService.interface';
 import { ICurrency } from '../../../domain/currency';
 import { saveCalculation } from '../../../lib/calculations';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
-// Create an instance of the calculator service
 const calculatorService = new CalculatorService();
 
-// Define API-specific request and response types
 interface CalculateRequestBody {
   initialAmountUSD?: number; // Optional for backward compatibility
   exchangeRate?: number; // Optional for backward compatibility
@@ -18,14 +18,12 @@ interface CalculateRequestBody {
   initialAmount?: number; // Initial amount in the source currency
 }
 
-// Validation constants
 const MAX_STEPS = 20;
 const MAX_INITIAL_VALUE = 1000000000; // 1 billion
 const MAX_EXCHANGE_RATE = 10000;
 const MAX_REDUCTIONS = 20;
 const MAX_STRING_LENGTH = 500;
 
-// Default currencies
 const DEFAULT_SOURCE_CURRENCY: ICurrency = {
   code: 'USD',
   symbol: '$',
@@ -49,18 +47,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse the request body
+    // Get user ID from the session if available
+    let userId: string | undefined = undefined;
+    try {
+      const cookieStore = cookies();
+      const supabase = await createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      userId = session?.user?.id;
+    } catch (authError) {
+      console.error('[API /api/calculate Auth Error]:', authError);
+    }
+
     const body: CalculateRequestBody = await request.json();
     
-    // Set default currencies if not provided
     const sourceCurrency = body.sourceCurrency || DEFAULT_SOURCE_CURRENCY;
     const targetCurrency = body.targetCurrency || DEFAULT_TARGET_CURRENCY;
     
-    // Handle both old and new request formats
     try {
       if (body.steps && body.steps.length > 0) {
 
-        // Validate step count
         if (body.steps.length > MAX_STEPS) {
           return NextResponse.json(
             { error: `Too many steps. Maximum allowed: ${MAX_STEPS}` },
@@ -68,9 +73,7 @@ export async function POST(request: Request) {
           );
         }
         
-        // Validate steps values
         for (const step of body.steps) {
-          // Validate string lengths to prevent memory issues
           if (
             (step.description && step.description.length > MAX_STRING_LENGTH) || 
             (step.explanation && step.explanation.length > MAX_STRING_LENGTH)
@@ -81,7 +84,6 @@ export async function POST(request: Request) {
             );
           }
           
-          // Validate numeric values based on step type
           if (step.type === 'initial' && (step.value <= 0 || step.value > MAX_INITIAL_VALUE)) {
             return NextResponse.json(
               { error: `Invalid initial value. Must be between 0 and ${MAX_INITIAL_VALUE}` },
@@ -170,7 +172,8 @@ export async function POST(request: Request) {
                 resultRunningTotal: step.result_running_total,
                 explanation: step.explanation,
                 stepType: body.steps?.[step.step - 1]?.type || 'unknown'
-              }))
+              })),
+              userId
             });
           } catch (dbError) {
             console.error('[API /api/calculate DB Error]:', dbError);
@@ -276,7 +279,8 @@ export async function POST(request: Request) {
               explanation: step.explanation,
               stepType: index === 0 ? 'initial' : 
                        index === 1 ? 'exchange_rate' : 'percentage_reduction'
-            }))
+            })),
+            userId
           });
         } catch (dbError) {
           console.error('[API /api/calculate DB Error]:', dbError);

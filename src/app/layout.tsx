@@ -4,6 +4,8 @@ import "./globals.css";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/theme-provider";
 import ReduxProvider from "@/components/ReduxProvider";
+import SupabaseProvider from "@/providers/SupabaseProvider";
+import { createClient } from "@/lib/supabase/server";
 import "@/lib/suppressHydrationWarnings";
 
 const geistSans = Geist({
@@ -21,11 +23,14 @@ export const metadata: Metadata = {
   description: "Calculate step-by-step reductions of an amount in USD to BRL",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -37,9 +42,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ReduxProvider>
-            <Layout>{children}</Layout>
-          </ReduxProvider>
+          <SupabaseProvider initialSession={session}>
+            <ReduxProvider>
+              <Layout>{children}</Layout>
+            </ReduxProvider>
+          </SupabaseProvider>
         </ThemeProvider>
       </body>
     </html>

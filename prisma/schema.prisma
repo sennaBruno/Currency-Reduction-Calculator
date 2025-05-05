@@ -18,6 +18,9 @@ model Calculation {
   currencyCode  String            @default("BRL")
   title         String?
   steps         CalculationStep[]
+  userId        String?
+
+  @@index([userId])
 }
 
 model CalculationStep {
