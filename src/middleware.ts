@@ -14,8 +14,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name, value, options) {
-          // This is needed because Supabase Auth needs to set cookies on the
-          // response for auth to work.
           response.cookies.set({
             name,
             value,
@@ -34,22 +32,15 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if it exists
-  await supabase.auth.getSession()
-
-  // Protected routes that require authentication
   const protectedRoutes = ['/history', '/calculation']
   const isProtectedRoute = protectedRoutes.some(
     (route) => request.nextUrl.pathname.startsWith(route)
   )
 
-  // Check if we have a session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  const isAuthenticated = !userError && userData?.user !== null
 
-  // Redirect to login if accessing a protected route without a session
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !isAuthenticated) {
     return NextResponse.redirect(new URL('/auth', request.url))
   }
 

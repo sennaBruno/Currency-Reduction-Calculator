@@ -23,6 +23,8 @@ export function UserMenu() {
     )
   }
   
+  const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'User'
+  
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -33,7 +35,8 @@ export function UserMenu() {
       <DropdownMenuContent align="end">
         <div className="flex items-center justify-start gap-2 p-2">
           <div className="flex flex-col space-y-1 leading-none">
-            <p className="font-medium">{user.email}</p>
+            <p className="font-medium">{userName}</p>
+            <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
         </div>
         <DropdownMenuSeparator />

@@ -10,13 +10,13 @@ import { revalidatePath } from 'next/cache'
  */
 async function getUserId() {
   const supabase = await createClient()
-  const { data } = await supabase.auth.getSession()
+  const { data, error } = await supabase.auth.getUser()
   
-  if (!data.session) {
+  if (error || !data.user) {
     redirect('/auth')
   }
   
-  return data.session.user.id
+  return data.user.id
 }
 
 /**
@@ -50,7 +50,6 @@ export async function getCalculationForUser(id: string) {
   const calculation = await getCalculationById(id, userId)
   
   if (!calculation) {
-    // Either calculation doesn't exist or doesn't belong to this user
     return null
   }
   

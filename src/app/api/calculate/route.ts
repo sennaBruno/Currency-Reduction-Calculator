@@ -37,7 +37,6 @@ const DEFAULT_TARGET_CURRENCY: ICurrency = {
 
 export async function POST(request: Request) {
   try {
-    // Check request size to prevent DoS attacks
     const contentLength = request.headers.get('content-length');
     if (contentLength && parseInt(contentLength) > 10000) { // 10KB limit
       return NextResponse.json(
@@ -46,12 +45,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get user ID from the session if available
     let userId: string | undefined = undefined;
     try {
       const supabase = await createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      userId = session?.user?.id;
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      userId = !userError && userData?.user ? userData.user.id : undefined;
     } catch (authError) {
       console.error('[API /api/calculate Auth Error]:', authError);
     }
@@ -118,7 +116,6 @@ export async function POST(request: Request) {
           }
         }
         
-        // Validate that there is at least one 'initial' type step
         const hasInitialStep = body.steps.some(step => step.type === 'initial');
         if (!hasInitialStep) {
           return NextResponse.json(
@@ -127,7 +124,6 @@ export async function POST(request: Request) {
           );
         }
         
-        // Check for logical calculation errors before processing
         const initialIndex = body.steps.findIndex(step => step.type === 'initial');
         const hasExchangeRateBeforeInitial = body.steps.some((step, index) => 
           step.type === 'exchange_rate' && index < initialIndex
@@ -140,7 +136,6 @@ export async function POST(request: Request) {
           );
         }
         
-        // Now process the calculation with a timeout to prevent long-running calculations
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Calculation timeout')), 5000) // 5 second timeout
         );
@@ -151,9 +146,7 @@ export async function POST(request: Request) {
             timeoutPromise
           ]) as { steps: ICalculationResult[]; final_result: number };
           
-          // Save calculation to database
           try {
-            // Find the initial amount (from the 'initial' step)
             const initialStep = body.steps.find(step => step.type === 'initial');
             const initialAmount = initialStep ? initialStep.value : 0;
             

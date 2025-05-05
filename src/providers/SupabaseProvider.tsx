@@ -28,28 +28,47 @@ export default function SupabaseProvider({
   children: React.ReactNode
   initialSession: Session | null
 }) {
-  const supabase = createClient()
+  const supabaseClient = createClient()
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(initialSession?.user || null)
+  const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(initialSession)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    const verifyInitialUser = async () => {
+      const { data, error } = await supabaseClient.auth.getUser()
+      if (!error && data) {
+        setUser(data.user)
+      }
+      setIsLoading(false)
+    }
+    
+    verifyInitialUser()
+  }, [initialSession, supabaseClient.auth])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
+      const { data: userData, error } = await supabaseClient.auth.getUser()
+      if (!error && userData) {
+        setUser(userData.user)
+        setSession(session)
+      } else {
+        setUser(null)
+        setSession(null)
+      }
+      
       router.refresh()
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [supabase, router])
+  }, [supabaseClient.auth, router])
 
   const signOut = async () => {
     setIsLoading(true)
     try {
-      await supabase.auth.signOut()
+      await supabaseClient.auth.signOut()
       router.push('/')
     } finally {
       setIsLoading(false)

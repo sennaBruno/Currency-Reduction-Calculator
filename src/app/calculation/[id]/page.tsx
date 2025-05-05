@@ -29,7 +29,7 @@ export default async function CalculationDetailsPage({
 }: {
   params: { id: string };
 }) {
-  const id = params.id;
+  const { id } = params;
   const calculation = await getCalculationForUser(id) as Calculation;
   
   if (!calculation) {
