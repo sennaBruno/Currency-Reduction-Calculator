@@ -1,40 +1,11 @@
 import { ApiService } from './api';
-import { InputStep } from '../types/calculator';
+import { 
+  InputStep, 
+  DetailedCalculationResult, 
+  SimpleCalculationResult
+} from '../types/calculator';
 
 export type { InputStep };
-
-/**
- * Result of a calculation step
- */
-export interface CalculationStep {
-  step: number;
-  initialBRL?: number;
-  reductionPercentage?: number;
-  reductionAmountBRL?: number;
-  finalBRL?: number;
-  description: string;
-  calculation_details: string;
-  result_intermediate: number;
-  result_running_total: number;
-  explanation?: string;
-}
-
-/**
- * Result of a detailed calculation
- */
-export interface DetailedCalculationResult {
-  steps: CalculationStep[];
-  final_result: number;
-}
-
-/**
- * Result of a simple calculation
- */
-export interface SimpleCalculationResult {
-  steps: CalculationStep[];
-  initialBRLNoReduction: number;
-  final_result: number;
-}
 
 /**
  * Service for calculator operations

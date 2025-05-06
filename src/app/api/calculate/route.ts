@@ -3,11 +3,10 @@ import { CalculatorService } from '../../../application/calculator/calculatorSer
 import { ICalculationStep, ICalculationResult } from '../../../domain/calculator/calculatorService.interface';
 import { ICurrency } from '../../../domain/currency';
 import { saveCalculation } from '../../../lib/calculations';
+import { createClient } from '@/lib/supabase/server';
 
-// Create an instance of the calculator service
 const calculatorService = new CalculatorService();
 
-// Define API-specific request and response types
 interface CalculateRequestBody {
   initialAmountUSD?: number; // Optional for backward compatibility
   exchangeRate?: number; // Optional for backward compatibility
@@ -18,14 +17,12 @@ interface CalculateRequestBody {
   initialAmount?: number; // Initial amount in the source currency
 }
 
-// Validation constants
 const MAX_STEPS = 20;
 const MAX_INITIAL_VALUE = 1000000000; // 1 billion
 const MAX_EXCHANGE_RATE = 10000;
 const MAX_REDUCTIONS = 20;
 const MAX_STRING_LENGTH = 500;
 
-// Default currencies
 const DEFAULT_SOURCE_CURRENCY: ICurrency = {
   code: 'USD',
   symbol: '$',
@@ -40,7 +37,6 @@ const DEFAULT_TARGET_CURRENCY: ICurrency = {
 
 export async function POST(request: Request) {
   try {
-    // Check request size to prevent DoS attacks
     const contentLength = request.headers.get('content-length');
     if (contentLength && parseInt(contentLength) > 10000) { // 10KB limit
       return NextResponse.json(
@@ -49,18 +45,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse the request body
+    let userId: string | undefined = undefined;
+    try {
+      const supabase = await createClient();
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      userId = !userError && userData?.user ? userData.user.id : undefined;
+    } catch (authError) {
+      console.error('[API /api/calculate Auth Error]:', authError);
+    }
+
     const body: CalculateRequestBody = await request.json();
     
-    // Set default currencies if not provided
     const sourceCurrency = body.sourceCurrency || DEFAULT_SOURCE_CURRENCY;
     const targetCurrency = body.targetCurrency || DEFAULT_TARGET_CURRENCY;
     
-    // Handle both old and new request formats
     try {
       if (body.steps && body.steps.length > 0) {
 
-        // Validate step count
         if (body.steps.length > MAX_STEPS) {
           return NextResponse.json(
             { error: `Too many steps. Maximum allowed: ${MAX_STEPS}` },
@@ -68,9 +69,7 @@ export async function POST(request: Request) {
           );
         }
         
-        // Validate steps values
         for (const step of body.steps) {
-          // Validate string lengths to prevent memory issues
           if (
             (step.description && step.description.length > MAX_STRING_LENGTH) || 
             (step.explanation && step.explanation.length > MAX_STRING_LENGTH)
@@ -81,7 +80,6 @@ export async function POST(request: Request) {
             );
           }
           
-          // Validate numeric values based on step type
           if (step.type === 'initial' && (step.value <= 0 || step.value > MAX_INITIAL_VALUE)) {
             return NextResponse.json(
               { error: `Invalid initial value. Must be between 0 and ${MAX_INITIAL_VALUE}` },
@@ -118,7 +116,6 @@ export async function POST(request: Request) {
           }
         }
         
-        // Validate that there is at least one 'initial' type step
         const hasInitialStep = body.steps.some(step => step.type === 'initial');
         if (!hasInitialStep) {
           return NextResponse.json(
@@ -127,7 +124,6 @@ export async function POST(request: Request) {
           );
         }
         
-        // Check for logical calculation errors before processing
         const initialIndex = body.steps.findIndex(step => step.type === 'initial');
         const hasExchangeRateBeforeInitial = body.steps.some((step, index) => 
           step.type === 'exchange_rate' && index < initialIndex
@@ -140,7 +136,6 @@ export async function POST(request: Request) {
           );
         }
         
-        // Now process the calculation with a timeout to prevent long-running calculations
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Calculation timeout')), 5000) // 5 second timeout
         );
@@ -151,9 +146,7 @@ export async function POST(request: Request) {
             timeoutPromise
           ]) as { steps: ICalculationResult[]; final_result: number };
           
-          // Save calculation to database
           try {
-            // Find the initial amount (from the 'initial' step)
             const initialStep = body.steps.find(step => step.type === 'initial');
             const initialAmount = initialStep ? initialStep.value : 0;
             
@@ -170,7 +163,8 @@ export async function POST(request: Request) {
                 resultRunningTotal: step.result_running_total,
                 explanation: step.explanation,
                 stepType: body.steps?.[step.step - 1]?.type || 'unknown'
-              }))
+              })),
+              userId
             });
           } catch (dbError) {
             console.error('[API /api/calculate DB Error]:', dbError);
@@ -276,7 +270,8 @@ export async function POST(request: Request) {
               explanation: step.explanation,
               stepType: index === 0 ? 'initial' : 
                        index === 1 ? 'exchange_rate' : 'percentage_reduction'
-            }))
+            })),
+            userId
           });
         } catch (dbError) {
           console.error('[API /api/calculate DB Error]:', dbError);

@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { ThemeToggle } from "./theme-toggle";
 import Link from "next/link";
 import { History } from "lucide-react";
+import { UserMenu } from "./UserMenu";
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ export default function Layout({ children }: LayoutProps) {
           <History className="h-5 w-5" />
           <span className="ml-2 hidden sm:inline">History</span>
         </Link>
+        <UserMenu />
         <ThemeToggle />
       </div>
       {children}

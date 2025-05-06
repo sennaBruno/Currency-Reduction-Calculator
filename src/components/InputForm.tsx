@@ -5,13 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-// Import Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils"; // Import cn utility
+import { cn } from "@/lib/utils"; 
 
-// Define schema for form validation
 const formSchema = z.object({
   initialAmountUSD: z
     .number({ 
@@ -30,7 +28,6 @@ const formSchema = z.object({
     .min(1, 'At least one reduction percentage is required')
     .refine(
       (val) => {
-        // Check if all values are valid percentages between 0-100
         const percentages = val
           .split(',')
           .map(p => p.trim())
@@ -80,7 +77,6 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = fa
   };
 
   return (
-    // Use space-y-6 for potentially better spacing with Shadcn defaults
     <form className="space-y-6" onSubmit={handleSubmit(handleFormSubmit)}>
       <div className="space-y-2">
         <Label htmlFor="initialAmountUSD">Initial Amount (USD)</Label>
@@ -88,15 +84,14 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = fa
           {...register('initialAmountUSD', { valueAsNumber: true })}
           type="number" 
           id="initialAmountUSD" 
-          // Use cn for conditional classes, apply error state styling
           className={cn(errors.initialAmountUSD && "border-red-500 focus-visible:ring-red-500")}
-          min={0} // Use number instead of string
+          min={0} 
           step="0.01"
           placeholder="Enter amount in USD"
           disabled={isLoading}
         />
         {errors.initialAmountUSD && (
-          <p className="text-sm text-red-500">{errors.initialAmountUSD.message}</p> // Use text-sm for consistency
+          <p className="text-sm text-red-500">{errors.initialAmountUSD.message}</p>
         )}
       </div>
 
@@ -107,7 +102,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = fa
           type="number" 
           id="exchangeRate" 
           className={cn(errors.exchangeRate && "border-red-500 focus-visible:ring-red-500")}
-          min={0} // Use number instead of string
+          min={0} 
           step="0.01"
           placeholder="Enter exchange rate"
           disabled={isLoading}
@@ -127,7 +122,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = fa
           placeholder="E.g., 10, 20, 5.5"
           disabled={isLoading}
         />
-        <p className="text-sm text-muted-foreground">Enter percentages separated by commas</p> {/* Use Shadcn's muted foreground color */}
+        <p className="text-sm text-muted-foreground">Enter percentages separated by commas</p>
         {errors.reductions && (
           <p className="text-sm text-red-500">{errors.reductions.message}</p>
         )}
@@ -144,7 +139,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSubmit, onReset, isLoading = fa
         
         <Button 
           type="button"
-          variant="outline" // Use outline variant for reset
+          variant="outline"
           className="flex-1"
           onClick={handleReset}
           disabled={isLoading}

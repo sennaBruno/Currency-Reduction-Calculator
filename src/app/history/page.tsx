@@ -1,7 +1,4 @@
-'use client';
-
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Table, 
   TableBody, 
@@ -18,73 +15,15 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { CalculationHistoryService } from '@/services/calculationHistoryService';
 import { formatCurrency } from '@/domain/currency/currencyConversion.utils';
-import { Trash2, Eye, ArrowLeft } from 'lucide-react';
+import { Eye, ArrowLeft } from 'lucide-react';
+import { getCalculationsForUser } from '../actions';
+import { DeleteCalculationButton } from '@/components/calculations/DeleteCalculationButton';
+import { Calculation } from '@/lib/types/Calculation';
 
-// Define a more complete type for calculations with steps included
-interface CalculationWithSteps {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  initialAmount: number;
-  finalAmount: number;
-  currencyCode: string;
-  title: string | null;
-  steps: Array<{
-    id: string;
-    calculationId: string;
-    order: number;
-    description: string;
-    calculationDetails: string;
-    resultIntermediate: number;
-    resultRunningTotal: number;
-    explanation: string | null;
-    stepType: string;
-  }>;
-}
-
-export default function HistoryPage() {
-  const [calculations, setCalculations] = useState<CalculationWithSteps[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    loadCalculations();
-  }, []);
-
-  const loadCalculations = async () => {
-    setLoading(true);
-    try {
-      const data = await CalculationHistoryService.getCalculations();
-      setCalculations(data as CalculationWithSteps[]);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to load calculations:', err);
-      setError('Failed to load calculation history. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteCalculation = async (id: string) => {
-    if (confirm('Are you sure you want to delete this calculation?')) {
-      try {
-        await CalculationHistoryService.deleteCalculation(id);
-        // Remove from local state to avoid another API call
-        setCalculations(calculations.filter(calc => calc.id !== id));
-      } catch (err) {
-        console.error('Failed to delete calculation:', err);
-        alert('Failed to delete calculation. Please try again.');
-      }
-    }
-  };
-
-  const handleViewDetails = (id: string) => {
-    router.push(`/calculation/${id}`);
-  };
-
+export default async function HistoryPage() {
+  const calculations = await getCalculationsForUser() as Calculation[];
+  
   const formatDate = (dateString: string | Date) => {
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return date.toLocaleDateString(undefined, { 
@@ -106,11 +45,13 @@ export default function HistoryPage() {
           </div>
           <Button 
             variant="outline" 
-            onClick={() => router.push('/')}
+            asChild
             className="flex items-center gap-2"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Calculator
+            <Link href="/">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Calculator
+            </Link>
           </Button>
         </div>
         
@@ -124,20 +65,12 @@ export default function HistoryPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="py-8 text-center">
-                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full inline-block mb-2"></div>
-                <p className="text-muted-foreground">Loading calculations...</p>
-              </div>
-            ) : error ? (
-              <div className="py-8 text-center">
-                <p className="text-destructive mb-4">{error}</p>
-                <Button variant="outline" onClick={loadCalculations}>Try Again</Button>
-              </div>
-            ) : calculations.length === 0 ? (
+            {calculations.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-muted-foreground mb-4">No calculation history found</p>
-                <Button onClick={() => router.push('/')}>Make a Calculation</Button>
+                <Button asChild>
+                  <Link href="/">Make a Calculation</Link>
+                </Button>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -171,20 +104,14 @@ export default function HistoryPage() {
                             <Button 
                               variant="outline" 
                               size="icon"
-                              onClick={() => handleViewDetails(calc.id)}
+                              asChild
                               title="View Details"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Link href={`/calculation/${calc.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="icon"
-                              onClick={() => handleDeleteCalculation(calc.id)}
-                              className="text-destructive hover:bg-destructive/10"
-                              title="Delete Calculation"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <DeleteCalculationButton id={calc.id} />
                           </div>
                         </TableCell>
                       </TableRow>
